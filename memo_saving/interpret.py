@@ -155,9 +155,16 @@ def vote_link_create(account_memo, our_memo_account, our_sending_account, active
         account_memo["vote-link"].append(index)
     return account_memo
 
+
+def vote_link_find(position,our_memo_account,our_sending_account,node):
+    return_info = main.retrieve(position=position,account=our_sending_account,sent_to = our_memo_account,node=node)
+
+    return return_info
+
+
 def get_vote_list(memo_account, sending_account, post_link, node):
 
-    return_info = main.retrieve(keyword=[["post-link",post_link]],account=sending_account, sent_to = memo_account, node=node)
+    return_info = main.retrieve(keyword=[["vote-link",post_link]],account=sending_account, sent_to = memo_account, node=node)
 
 
     return return_info

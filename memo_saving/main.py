@@ -20,7 +20,10 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
     memo_list = []
     if position > -1:
         # This returns the memo based on a saved position
-        return get_memo(s.get_account_history(sent_to, position, 1),type_thing)
+
+
+        memo = get_memo(s.get_account_history(sent_to, position, 0),type_thing)
+        return memo
 
 
     else:
@@ -35,8 +38,8 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
         elif type_thing == "curation_reward":
             memo_thing = s.get_account_history(account,-1,0)
         size = memo_thing[0][0]
+
         if minblock > 0:
-            print(minblock, memo_thing[0][1]["block"], minblock)
 
             minblock = memo_thing[0][1]["block"] - minblock
             print(minblock)
@@ -89,6 +92,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                      #   print(new_memo)
                         for ii in keyword:
 
+
                       #      print(i)
 
                             has_keyword = False
@@ -113,6 +117,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
 
                 if has_min_block:
                     break
+
             if position == step+1 or has_min_block or (recent <= len(memo_list) and not_all_accounts):
                 # ends if it has gone through all the memos, reached the min block, or has too many memos
              #   print("break")
@@ -237,7 +242,8 @@ def get_memo(history_list,type_thing):
                         memos.append(memo)
                     else:
                         memo = []
-                except:
+                except Exception as e:
+                    print(e)
 
                     pass
             if type(ii) == int:

@@ -49,9 +49,6 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
                         # checks through all votes made by the account
                         # The vote is added to the account only after it is added to the reward total
                         already_voted = False
-                        print(account)
-                        print(vote)
-                        print(post)
 
 
                         # goes through every vote made by the account to see if the saved position of the post-memo is the same as where it was found
@@ -68,10 +65,18 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
                         for post_link in account[2]["vote-link"]:
                             if already_voted:
                                 break
-                            pass
+                            post_link = interpret.vote_link_find(post_link[0],post_link[1],sending_account,node)
+                            print(post_link)
+                            for post_vote in json.loads(post_link[0][2])["vote"]:
+                                if already_voted:
+                                    break
+                                if post[0] == post_vote[0]:
+                                    already_voted = True
+                            print("end")
+
                         if not already_voted:
                             print("not already voted")
-
+                            return
                             steem_value = steem.converter.Converter().vests_to_sp(float((reward[1]["reward"].split(" VESTS")[0])))/ len(post[2]["vote-list"]) # YOU CANT MAKE IT FucKING EASY CAN YOU
                             print(steem_value)
                             print(1111)
@@ -92,6 +97,6 @@ def payout_rewards(sending_account,memo_account,active_key,node):
 
 
 
-curation_rewards("anarchyhasnogods","space-pictures","active key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
+curation_rewards("anarchyhasnogods","space-pictures","active_key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
 #for i in range(10):
  #   interpret.start_account(str(i),"","space-pictures","anarchyhasnogods")
