@@ -8,6 +8,7 @@ import math
 from memo_saving import interpret
 from memo_saving import main
 import json
+import steem
 
 # Make sure to add vests to steem equation
 # for looking through all votes assumes same memo account
@@ -71,10 +72,12 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
                         if not already_voted:
                             print("not already voted")
 
-                            steem_value = None
-                            #interpret.update_account(account["account"], sending_account, memo_account,
-                                                    # [["vote",[post[0],memo_account]],["gp",account[1]["gp"] + steem_value * account[1]["steem-gp-ratio"]],
-                                                     # ["steem-owed",account[1]["steem-owed"] + steem_value * (1-account[1]["steem-gp-ratio"])]], active_key,node)
+                            steem_value = steem.converter.Converter().vests_to_sp(float((reward[1]["reward"].split(" VESTS")[0])))/ len(post[2]["vote-list"]) # YOU CANT MAKE IT FucKING EASY CAN YOU
+                            print(steem_value)
+                            print(1111)
+                            interpret.update_account(account[2]["account"], sending_account, memo_account,
+                                                     [["vote",[post[0],memo_account]],["gp",account[2]["gp"] + steem_value * account[2]["steem-gp-ratio"]],
+                                                      ["steem-owed",account[2]["steem-owed"] + steem_value * (1-account[2]["steem-gp-ratio"])]], active_key,node)
                         else:
                             print("already voted")
 
