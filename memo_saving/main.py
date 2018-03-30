@@ -68,6 +68,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                     break
                 has_keyword = False
                 if type_thing == "transfer":
+
                     if memos[i][3] < minblock:
                         has_min_block = True
                     has_account = False
@@ -87,6 +88,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                         new_memo = json.loads(str(memos[i][2]))
                      #   print(new_memo)
                         for ii in keyword:
+
                       #      print(i)
 
                             has_keyword = False

@@ -23,7 +23,9 @@ def start_account(account_name,active_key, our_memo_account="space-pictures", ou
         keyword_dict["steem-owed"]= 0
         keyword_dict["vote"]= []
         keyword_dict["vote-link"]= []
-        keyword_dict["steem-gp-ratio"] = 0.25 # amount of steem that is turned into GP automatically
+        keyword_dict["steem-gp-ratio"] = 0.33 # amount of steem that is turned into GP automatically
+        keyword_dict["groups"] = ["CI",1] # group, rank
+
 
     keyword_dict["account"] = account_name
 
@@ -201,8 +203,9 @@ def get_all_curation_rewards(time_period,our_account,our_memo_account,node):
 
 def get_all_votes(time_period,our_account,our_memo_account,node):
     block = time_period / 3
-    return_info = main.retrieve(["type","post"],account=our_account, sent_to=our_memo_account, node=node,
+    return_info = main.retrieve([["type","post"]],account=our_account, sent_to=our_memo_account, node=node,
                                 minblock=block, not_all_accounts=False)
+
     return return_info
     pass
 
