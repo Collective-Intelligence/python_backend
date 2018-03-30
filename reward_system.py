@@ -21,7 +21,13 @@ def daily_reward_set(sending_account,memo_account,active_key, time_period,node):
 
 def curation_rewards(sending_account,memo_account,active_key,time_period,node):
 
-    all_votes = interpret.get_all_votes(time_period,sending_account,memo_account,node)
+    reward_list = interpret.get_all_votes(time_period,sending_account,memo_account,node)
+    print(reward_list)
+
+    for i in reward_list:
+        print(i)
+    return
+
     for i in all_votes: # looks through all posts
         #print(json.loads(i[2])["vote-list"]) # gets list of votes from all posts
         print("999")
@@ -67,4 +73,4 @@ def payout_rewards(sending_account,memo_account,active_key,node):
 
 
 
-curation_rewards("anarchyhasnogods","space-pictures","key",24 * 60 * 60,"wss://steemd-int.steemit.com")
+curation_rewards("anarchyhasnogods","space-pictures","key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")

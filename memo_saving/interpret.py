@@ -193,8 +193,8 @@ def get_vote_amount(time_period,our_account = "anarchyhasnogods", our_memo_accou
 
 def get_all_votes(time_period,our_account,our_memo_account,node):
     block = time_period / 3
-    return_info = main.retrieve([["type", "post"]], account=our_account, sent_to=our_memo_account, node=node,
-                                minblock=block, not_all_accounts=False)
+    return_info = main.retrieve(account=our_account, sent_to=our_memo_account, node=node,
+                                minblock=block, not_all_accounts=False,type_thing="curation_reward")
     return return_info
     pass
 

@@ -5,7 +5,7 @@ from steem import Steem
 import time
 import json
 
-def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", position=-1, recent = 1, step = 10000, minblock = -1, node="wss://steemd.privex.io", not_all_accounts = True,type="memo"):
+def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", position=-1, recent = 1, step = 10000, minblock = -1, node="wss://steemd.privex.io", not_all_accounts = True, type_thing="transfer"):
     # minblock is blocks before current block
     # account is the account that sent the memo
     # sent-to is account that it was sent to
@@ -14,14 +14,13 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
     # step means how many actions it grabs at once
     # notallaccounts is wether or not it looks at every account
 
-    #type is "memo" or "curation"
 
     node_connection = create_connection(node)
     s = Steem(node=node_connection)
     memo_list = []
     if position > -1:
         # This returns the memo based on a saved position
-        return get_memo(s.get_account_history(sent_to, position, 1))
+        return get_memo(s.get_account_history(sent_to, position, 1),type_thing)
 
 
     else:
@@ -31,10 +30,16 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
         memo_list = []
         # This gets the total amount of items in the accounts history
         # This it to prevent errors related to going before the creation of the account
-        memo_thing = s.get_account_history(sent_to,-1,0)
+        if type_thing == "transfer":
+            memo_thing = s.get_account_history(sent_to,-1,0)
+        elif type_thing == "curation_reward":
+            memo_thing = s.get_account_history(account,-1,0)
         size = memo_thing[0][0]
         if minblock > 0:
+            print(minblock, memo_thing[0][1]["block"], minblock)
+
             minblock = memo_thing[0][1]["block"] - minblock
+            print(minblock)
         position = size
         if position < 0:
             position = step +1
@@ -47,23 +52,32 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                 if len(memo_list) >= recent:
 
                     break
-            history = s.get_account_history(sent_to, position, step)
-            memos = get_memo(history)
+            if type_thing =="transfer":
+                history = s.get_account_history(sent_to, position, step)
+                memos = get_memo(history, type_thing)
+            elif type_thing=="curation_reward":
+                history = s.get_account_history(account,position,step)
+                memos = get_memo(history, type_thing)
             has_min_block = False
             #print(len(memos),keyword)
             for i in range(len(memos)-1, -1, -1):
                 # goes through memos one at a time, starting with latest
-
                 if len(memo_list) >= recent and not_all_accounts:
                     # ends if there are enough memos
-             #       print("here")
+                    print("here")
                     break
                 has_keyword = False
+                if type_thing == "transfer":
+                    if memos[i][3] < minblock:
+                        has_min_block = True
+                    has_account = False
 
-                if memos[i][3] < minblock:
-                    has_min_block = True
-                has_account = False
-                if memos[i][1] == account:
+                    if memos[i][1] == account:
+                        has_account = True
+                if type_thing == "curation_reward":
+
+                    if memos[i][2] < minblock:
+                        has_min_block = True
                     has_account = True
                 if keyword != []:
                     # checks if keyword is in the memo
@@ -85,13 +99,18 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                     except Exception as e:
                         pass
 
-                if has_keyword and has_account:
+                else:
+                    # not having a keyword is not advisible for transfer memos
+                    has_keyword = True
+                if has_keyword and has_account or type_thing == "curation_reward":
+
 
                     memo_list.append(memos[i])
 
 
 
-
+                if has_min_block:
+                    break
             if position == step+1 or has_min_block or (recent <= len(memo_list) and not_all_accounts):
                 # ends if it has gone through all the memos, reached the min block, or has too many memos
              #   print("break")
@@ -190,26 +209,34 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
 
 
 
-def get_memo(history_list):
+def get_memo(history_list,type_thing):
     # this goes through every account action and sees if it is a transfer
     # it then adds it to the list for the functions above to check
     memos = []
-    for i in history_list:
+    for i in history_list:# full list of account actions
         memo = []
-        for ii in i:
+        for ii in i: # goes through every action until it gets what i actually need
 
-            if type(ii) == dict:
+            if type(ii) == dict: # what i need is the only dict
                 try:
-                    print(ii["op"])
-                    if ii['op'][0] == 'transfer':
+                    if ii['op'][0] ==type_thing and type_thing =="transfer" :
+                        # Example:
+
                         memo.append(ii['op'][1]['from'])
                         memo.append(ii['op'][1]['memo'])
                         memo.append(ii['block'])
                         memos.append(memo)
+                    if ii['op'][0] == type_thing and type_thing =="curation_reward":
+                        # ii, example:{'trx_id': '0000000000000000000000000000000000000000', 'block': 21097520, 'trx_in_block': 55, 'op_in_trx': 1, 'virtual_op': 0, 'timestamp': '2018-03-29T11:16:12', 'op': ['curation_reward', {'curator': 'anarchyhasnogods',
+                        # 'reward': '4.079991 VESTS', 'comment_author': 'valth', 'comment_permlink': 'today-is-the-world-water-day'}]}
+                        memo.append(ii['op'][1])
 
+                        memo.append(ii['block'])
+                        memos.append(memo)
                     else:
                         memo = []
                 except:
+
                     pass
             if type(ii) == int:
 
