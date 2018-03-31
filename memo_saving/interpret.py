@@ -234,5 +234,20 @@ def get_all_votes(time_period,our_account,our_memo_account,node):
     pass
 
 
-def check_if_curation_reward():
-    pass
+def pay_account(size,our_account,our_memo_account,node,active_key,info):
+    try_num = 0
+    while try_num < 5:
+        try_num+= 1
+
+        try:
+            print("END",size)
+            return
+            s = Steem(node=node)
+            s.transfer(info["account"],size, asset="steem", account=our_account, memo="payment of "+ str(size)+" Steem.")
+            info["steem-owed"] -= size
+            break
+        except Exception as e:
+            print(e)
+            pass
+
+    main.save_memo(info,our_memo_account,our_account,active_key,node=node)

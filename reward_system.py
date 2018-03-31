@@ -91,17 +91,54 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
     pass
 
 
-def payout_rewards(sending_account,memo_account,active_key,node):
-    total_steem_owed = 0
+def payout_rewards(sending_account,memo_account,active_key,node, account_reward= 0.45, del_reward = 0.45, owners = 0.1):
+    # only pays out accounts active in the last 30 days.
+
+    total_steem_owed = 0.01
+    steem_levels = [0,0,0] # accounts with more than 1 steem owed, 0.1 steem and 0.01 steem
+    # This is used to determine how much is paid out, if there isnt enough to pay everyone 0.01 they may not be paid in that session
 
     account_list = interpret.get_all_accounts(sending_account,memo_account,node)
-    pass
+    # pulls all accounts and calculates the total amount of steem owed to them
     for account in account_list:
         try:
-            total_steem_owed += json.loads(account[2])["steem-owed"]
+            account[2] = json.loads(account[2])
+            steem_owed = account[2]["steem-owed"]
+
+            total_steem_owed += steem_owed
+            if steem_owed > 1:
+                steem_levels = [steem_levels[0] + 1, steem_levels[1] + 1, steem_levels[2] + 1]
+            elif steem_owed > 0.1:
+                steem_levels = [steem_levels[0], steem_levels[1] + 1, steem_levels[2] + 1]
+            elif steem_owed > 0.01:
+                steem_levels = [steem_levels[0], steem_levels[1], steem_levels[2] + 1]
+
+
         except:
             pass
-    print(total_steem_owed)
+    print("here")
+    s = Steem(node=node)
+    total_steem = float(s.get_account(sending_account)["balance"].split(" STEEM")[0])
+    print(total_steem)
+
+
+    # Measures if we are able to get every user at least 0.01 of their reward
+    # if not no rewards are paid out, to save enough levels to pay everyone
+    if total_steem * account_reward < steem_levels[2]:
+        return
+    reward_per_steem_owed = (total_steem * account_reward) / total_steem_owed
+    for account in account_list:
+
+        amount = reward_per_steem_owed * account[2]["steem-owed"]
+        if amount > steem_owed:
+            amount = steem_owed
+        amount = round(amount,2)
+
+        if amount > 0.01:
+            print("here7")
+            interpret.pay_account(amount,sending_account,memo_account,node,active_key,account[2])
+
+
 
 #curation_rewards("anarchyhasnogods","space-pictures","active_key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
 
