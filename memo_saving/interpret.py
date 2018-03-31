@@ -119,7 +119,7 @@ def vote_post(post_link, submission_author, submission_time,vote_list, ratio, ou
     return main.save_memo(json_thing,our_memo_account, our_sending_account, active_key,node=node)
 
 
-def get_account_list(sending_account,memo_account_list, days = 7):
+def get_account_list(sending_account,memo_account_list, node,days = 31):
     block = days * 24 * 60 * 20
     # checks up to 7 days ago by default
     memo_list = []
@@ -127,7 +127,8 @@ def get_account_list(sending_account,memo_account_list, days = 7):
     accounts_in_list = {"accounts": []}
 
     for i in memo_account_list:
-        temp_list.append(main.retrieve([["type", "account"]], sending_account, i, not_all_accounts = False, minblock=block))
+        temp_list.append(main.retrieve([["type", "account"]], sending_account, i, not_all_accounts = False, minblock=block,node=node))
+
         for ii in temp_list[0]:
             ii[2] = json.loads(ii[2])
             if ii[2]["account"] not in accounts_in_list["accounts"]:
@@ -143,6 +144,22 @@ def get_account_list(sending_account,memo_account_list, days = 7):
     return accounts_in_list
 
 
+
+def get_all_accounts(sending_account,memo_account, node,days = 31):
+    block = days * 24 * 60 * 20
+
+
+    return_info = main.retrieve([["type", "account"]], sending_account, memo_account, not_all_accounts = False, minblock=block,node=node)
+    account_list = []
+    return_list = []
+    for i in return_info:
+
+        if not json.loads(i[2])["account"] in account_list:
+            account_list.append(json.loads(i[2])["account"])
+            return_list.append(i)
+    return return_list
+
+    pass
 def vote_link_create(account_memo, our_memo_account, our_sending_account, active_key,node, create_link_anyway=False):
     # if the memo is too large it makes a static memo that is saved on its account
     print("this_thing")

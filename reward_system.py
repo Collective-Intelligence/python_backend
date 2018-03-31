@@ -28,7 +28,7 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
     # looks to see if post is in the post_list, if it is it adds some of the reward to every account involved
     reward_list = interpret.get_all_curation_rewards(time_period,sending_account,memo_account,node)
     print(reward_list)
-    post_list = interpret.get_all_votes(time_period * 4,sending_account,memo_account,node)
+    post_list = interpret.get_all_votes(time_period * 5,sending_account,memo_account,node)
     print(post_list)
 
 
@@ -76,7 +76,6 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
 
                         if not already_voted:
                             print("not already voted")
-                            return
                             steem_value = steem.converter.Converter().vests_to_sp(float((reward[1]["reward"].split(" VESTS")[0])))/ len(post[2]["vote-list"]) # YOU CANT MAKE IT FucKING EASY CAN YOU
                             print(steem_value)
                             print(1111)
@@ -93,10 +92,20 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
 
 
 def payout_rewards(sending_account,memo_account,active_key,node):
+    total_steem_owed = 0
+
+    account_list = interpret.get_all_accounts(sending_account,memo_account,node)
     pass
+    for account in account_list:
+        try:
+            total_steem_owed += json.loads(account[2])["steem-owed"]
+        except:
+            pass
+    print(total_steem_owed)
+
+#curation_rewards("anarchyhasnogods","space-pictures","active_key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
 
 
-
-curation_rewards("anarchyhasnogods","space-pictures","active_key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
+payout_rewards("anarchyhasnogods","space-pictures","key","wss://steemd-int.steemit.com")
 #for i in range(10):
  #   interpret.start_account(str(i),"","space-pictures","anarchyhasnogods")
