@@ -6,6 +6,7 @@ import time
 import json
 
 def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", position=-1, recent = 1, step = 10000, minblock = -1, node="wss://steemd.privex.io", not_all_accounts = True, type_thing="transfer"):
+    print(account)
     # minblock is blocks before current block
     # account is the account that sent the memo
     # sent-to is account that it was sent to
@@ -174,7 +175,6 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
         print(2)
         try_thing[0] = 0
     except Exception as e:
-        print(to, transaction_size, asset, account_from, memo)
         print(6)
         print(e)
         print(try_thing)

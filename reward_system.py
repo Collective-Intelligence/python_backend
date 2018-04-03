@@ -91,14 +91,15 @@ def curation_rewards(sending_account,memo_account,active_key,time_period,node):
     pass
 
 
-def payout_rewards(sending_account,memo_account,active_key,node, account_reward= 0.45, del_reward = 0.45, owners = 0.1):
+def payout_rewards(sending_account,memo_account,active_key,node, account_reward= 0.45, del_reward = 0.44, owners = 0.3):
     # only pays out accounts active in the last 30 days.
 
     total_steem_owed = 0.01
+    group_level_total = 0
     steem_levels = [0,0,0] # accounts with more than 1 steem owed, 0.1 steem and 0.01 steem
     # This is used to determine how much is paid out, if there isnt enough to pay everyone 0.01 they may not be paid in that session
-
     account_list = interpret.get_all_accounts(sending_account,memo_account,node)
+    total_del = 0
     # pulls all accounts and calculates the total amount of steem owed to them
     for account in account_list:
         try:
@@ -113,9 +114,38 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
             elif steem_owed > 0.01:
                 steem_levels = [steem_levels[0], steem_levels[1], steem_levels[2] + 1]
 
+            s = Steem(node=node)
 
-        except:
+            #account_del = float(s.get_vesting_delegations(account[2]["account"],sending_account,10000)["vesting_shares"].split(" VESTS")[0])
+            thing = s.get_vesting_delegations(account[2]["account"],sending_account,1000)
+            account_del = 0
+            for i in thing:
+                if i["delegatee"] == sending_account:
+                    account_del += float(i["vesting_shares"].split(" VESTS")[0])
+                    print(i)
+
+            owner_total = 0
+            for i in account[2]["groups"]:
+                print(i)
+                if i[0] == "CI" and i[1] == 5:
+                    owner_total += 1
+
+
+            #print(account_del)
+            account.append(account_del)
+            account.append(owner_total)
+            print(account_del)
+            group_level_total += owner_total
+            total_del += account_del
+        except Exception as e:
+            print(e)
             pass
+
+
+
+
+    # DO vesting delegation before payout to accounts, send new memo so it stays current and can be found.
+    # If they have delegation and curation it will send newer memo which is updated (this one just keeps current, no actual change)
     print("here")
     s = Steem(node=node)
     total_steem = float(s.get_account(sending_account)["balance"].split(" STEEM")[0])
@@ -124,18 +154,22 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
 
     # Measures if we are able to get every user at least 0.01 of their reward
     # if not no rewards are paid out, to save enough levels to pay everyone
-    if total_steem * account_reward < steem_levels[2]:
+    if total_steem * account_reward /0.05 < steem_levels[2]:
+        print("RETURN", total_steem, account_reward, steem_levels[2])
         return
     reward_per_steem_owed = (total_steem * account_reward) / total_steem_owed
     for account in account_list:
+        print("This")
 
         amount = reward_per_steem_owed * account[2]["steem-owed"]
-        if amount > steem_owed:
-            amount = steem_owed
-        amount = round(amount,2)
+        if amount > account[2]["steem-owed"]:
+            amount = account[2]["steem-owed"]
+        amount += + del_reward * total_steem * account_del / total_del + account[5] * total_steem * owners/ group_level_total
+        print(reward_per_steem_owed,account[2]["steem-owed"], del_reward * total_steem * account[4] / total_del)
 
+        amount = round(amount,2)
+        print("here",amount)
         if amount > 0.01:
-            print("here7")
             interpret.pay_account(amount,sending_account,memo_account,node,active_key,account[2])
 
 
@@ -143,6 +177,5 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
 #curation_rewards("anarchyhasnogods","space-pictures","active_key",24 * 60 * 60 * 2,"wss://steemd-int.steemit.com")
 
 
-payout_rewards("anarchyhasnogods","space-pictures","key","wss://steemd-int.steemit.com")
 #for i in range(10):
  #   interpret.start_account(str(i),"","space-pictures","anarchyhasnogods")

@@ -3,6 +3,7 @@
 
 from memo_saving import main
 import json
+from steem import Steem
 
 
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
@@ -24,7 +25,7 @@ def start_account(account_name,active_key, our_memo_account="space-pictures", ou
         keyword_dict["vote"]= []
         keyword_dict["vote-link"]= []
         keyword_dict["steem-gp-ratio"] = 0.33 # amount of steem that is turned into GP automatically
-        keyword_dict["groups"] = ["CI",1] # group, rank
+        keyword_dict["groups"] = [["CI",1]] # group, rank
 
 
     keyword_dict["account"] = account_name
@@ -149,6 +150,7 @@ def get_all_accounts(sending_account,memo_account, node,days = 31):
     block = days * 24 * 60 * 20
 
 
+
     return_info = main.retrieve([["type", "account"]], sending_account, memo_account, not_all_accounts = False, minblock=block,node=node)
     account_list = []
     return_list = []
@@ -236,18 +238,19 @@ def get_all_votes(time_period,our_account,our_memo_account,node):
 
 def pay_account(size,our_account,our_memo_account,node,active_key,info):
     try_num = 0
+    print("here")
     while try_num < 5:
         try_num+= 1
 
         try:
-            print("END",size)
-            return
-            s = Steem(node=node)
-            s.transfer(info["account"],size, asset="steem", account=our_account, memo="payment of "+ str(size)+" Steem.")
+            s = Steem(node=node,keys=active_key)
+            print(2)
+            s.transfer(info["account"],size, asset="STEEM", account=our_account, memo="payment of "+ str(size)+" Steem.")
             info["steem-owed"] -= size
+            main.save_memo(info, our_memo_account, our_account, active_key, node=node)
+            print("HERE")
             break
         except Exception as e:
             print(e)
             pass
 
-    main.save_memo(info,our_memo_account,our_account,active_key,node=node)
