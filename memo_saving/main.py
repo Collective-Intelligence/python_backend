@@ -50,12 +50,13 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
         if step > position:
             step = position - 1
         while found:
-            # Checks if the
+            # Checks if it has enough memos (ignores if its set to get all memos with not_all_accounts)
 
             if (recent > 0 and len(memo_list) > 0) and not_all_accounts:
                 if len(memo_list) >= recent:
 
                     break
+
             if type_thing =="transfer":
                 history = s.get_account_history(sent_to, position, step)
                 memos = get_memo(history, type_thing)
@@ -135,7 +136,6 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
 
 
 def save_memo(information, to, account_from, active_key, transaction_size=0.001, asset="SBD", node="wss://steemd-int.steemit.com",try_thing = [0,0]):
-    # print statements are because im testing rn
     # This should send a memo and return the position
 
     print("AAAAAAAAaa",information)
@@ -144,13 +144,14 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
             while True:
                 print("THIS")
                 try:
+                    # under testing rn, ignore
+                    break
 
                     print("here1")
                     s = Steem(node=node)
                     thing = s.get_account(information["account"])
                     print(thing)
                     print("here2")
-                    break
                     save_memo(information,information["account"],account_from,active_key,node=node)
                     break
                 except:
@@ -163,6 +164,7 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
     print("HERE")
     index = None
     try:
+        # creates connection and sends the transaction, it then checks if it can find the memo on the blockchain.
         print(0)
         node_connection = create_connection(node)
         print(1)
