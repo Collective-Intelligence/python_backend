@@ -131,7 +131,7 @@ class Post_holder:
 
                         votes += 1
 
-            # Make post memo, link to in vote memo
+            # Make post memo, this sits idle on chain until curation rewards are paid out.
                 ratio = votes/len(i[2])
                 vote_size = self.make_vote(ratio,i[0])
                 interpret.vote_post(i[0], i[1], i[4],i[2], votes / len(i[2]),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
@@ -141,6 +141,7 @@ class Post_holder:
 
 
     def make_vote(self, ratio, post_link):
+        # takes ratio and post link and calculates the vote on the post, and returns it for use in the post memo
         if ratio < self.vote_threshold:
             return 0
         if self.account_info[post_link] != None:

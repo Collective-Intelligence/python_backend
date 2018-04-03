@@ -39,7 +39,7 @@ def start_account(account_name,active_key, our_memo_account="space-pictures", ou
 
 
 def get_account_info(account,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node ="wss://steemd-int.steemit.com"):
-    # gets the useful account info for a specific account
+    # gets the useful account info for a specific account, goes through all accounts until it gets the correct account then returns info
     print("getting account info")
     return_info = main.retrieve([["account",account],["type","account"]], account=our_account, sent_to=our_memo_account,node=node)
 
@@ -191,6 +191,7 @@ def get_vote_list(memo_account, sending_account, post_link, node):
 
 def get_vote_amount(time_period,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node = "wss://steemd-int.steemit.com"):
     # time period is seconds
+    # gets average vote size by our account on posts over the time period, using the post memos sent
 
     block = time_period / 3
     return_info = main.retrieve([["type","post"]], account=our_account, sent_to=our_memo_account,node=node,minblock = block,not_all_accounts = False)
@@ -237,6 +238,7 @@ def get_all_votes(time_period,our_account,our_memo_account,node):
 
 
 def pay_account(size,our_account,our_memo_account,node,active_key,info):
+    # Sends steem to account and then updates the account memo (even if not needed, keeps it near the top)
     try_num = 0
     print("here")
     while try_num < 5:

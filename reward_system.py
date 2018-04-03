@@ -10,7 +10,6 @@ from memo_saving import main
 import json
 import steem
 
-# Make sure to add vests to steem equation
 # for looking through all votes assumes same memo account
 
 
@@ -107,6 +106,9 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
             steem_owed = account[2]["steem-owed"]
 
             total_steem_owed += steem_owed
+
+            # Levels to measure payout. Takes every account with a min owed balance
+            # is used to check if paying everyone the min is possible
             if steem_owed > 1:
                 steem_levels = [steem_levels[0] + 1, steem_levels[1] + 1, steem_levels[2] + 1]
             elif steem_owed > 0.1:
@@ -143,9 +145,7 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
 
 
 
-
-    # DO vesting delegation before payout to accounts, send new memo so it stays current and can be found.
-    # If they have delegation and curation it will send newer memo which is updated (this one just keeps current, no actual change)
+    # Gets total steem that can be paid currently from our account
     print("here")
     s = Steem(node=node)
     total_steem = float(s.get_account(sending_account)["balance"].split(" STEEM")[0])
@@ -158,12 +158,15 @@ def payout_rewards(sending_account,memo_account,active_key,node, account_reward=
         print("RETURN", total_steem, account_reward, steem_levels[2])
         return
     reward_per_steem_owed = (total_steem * account_reward) / total_steem_owed
+
+    # calculates total payout for each account out of the total and then sends it to that account
     for account in account_list:
         print("This")
 
         amount = reward_per_steem_owed * account[2]["steem-owed"]
         if amount > account[2]["steem-owed"]:
             amount = account[2]["steem-owed"]
+
         amount += + del_reward * total_steem * account_del / total_del + account[5] * total_steem * owners/ group_level_total
         print(reward_per_steem_owed,account[2]["steem-owed"], del_reward * total_steem * account[4] / total_del)
 
