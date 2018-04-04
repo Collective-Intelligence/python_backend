@@ -15,7 +15,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
     # step means how many actions it grabs at once
     # notallaccounts is wether or not it looks at every account
 
-
+    print(node)
     node_connection = create_connection(node)
     s = Steem(node=node_connection)
     memo_list = []
@@ -50,6 +50,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
         if step > position:
             step = position - 1
         while found:
+
             # Checks if it has enough memos (ignores if its set to get all memos with not_all_accounts)
 
             if (recent > 0 and len(memo_list) > 0) and not_all_accounts:

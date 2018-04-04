@@ -42,7 +42,6 @@ def get_account_info(account,our_account = "anarchyhasnogods", our_memo_account 
     # gets the useful account info for a specific account, goes through all accounts until it gets the correct account then returns info
     print("getting account info")
     return_info = main.retrieve([["account",account],["type","account"]], account=our_account, sent_to=our_memo_account,node=node)
-
     if return_info != []:
 
         return_info[0][2] = json.loads(return_info[0][2])
