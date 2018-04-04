@@ -41,14 +41,30 @@ class Main():
         self.curation_sessions = {}
         self.steem_node = node
         self.active_key = active_key
+        self.input_info = []
 
         # {"Session":{"class":class,"new_input":[[user1/system1,input1],[user2/system2,input2]], "lock":lock}}
 
-        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock()}
+        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock()}
         pass
 
-    def session_loop(self):
-        # This waits for json requests to start sessions
+    def communication_loop(self):
+        json_list = []
+        while True:
+
+            json_list = input(prompt="input data into session as json string")
+            thread = threading.Thread(target=self.read_json(), args=(json_list))
+
+        # This waits for inputs to do actions
+        pass
+
+    def read_json(self,json_object):
+        return_json = None
+        if json_object["action"] == "create_session":
+            if self.verify(json_object["steem-name"]):
+                self.create_session()
+            else:
+                return_json = json.dumps({"success":False,"error":1}) # Session could not be created
         pass
 
     def curation_loop(self):
@@ -69,9 +85,30 @@ class Main():
 
         pass
 
-    def verify(self):
+    def verify(self,name):
+
         # Verifies that the user exists, and does not already have a session
-        pass
+
+
+        # This checks if the session exists, if it does not it continues
+        while self.locks["user-sessions"]:
+            try:
+                self.user_sessions["steem-name"]
+                return False
+            except:
+                pass
+        # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
+        # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
+
+        if interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) == None:
+            # account does exist on our platform.
+            pass
+
+        else:
+            # checks if account exists on steem
+            pass
+
+        # verifies key
 
     def curation_loop(self):
         # Serves as the base for each curation system
