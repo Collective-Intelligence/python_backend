@@ -35,6 +35,7 @@ import threading
 class Main():
 
     def __init__(self,node,active_key):
+
         self.sending_account = "co-in"
         self.memo_account = "co-in-memo"
         self.user_sessions = {}
@@ -42,27 +43,43 @@ class Main():
         self.steem_node = node
         self.active_key = active_key
         self.input_info = []
+        self.json_return_list = []
 
         # {"Session":{"class":class,"new_input":[[user1/system1,input1],[user2/system2,input2]], "lock":lock}}
 
-        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock()}
+        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock(),"return_list":threading.Lock()}
         pass
 
     def communication_loop(self):
+
         json_list = []
         while True:
 
-            json_list = input(prompt="input data into session as json string")
-            thread = threading.Thread(target=self.read_json(), args=(json_list))
+            json_list = input()
+            try:
+                print(json_list, type(json_list), len([json_list]))
+                # creates thread to do stuff with inputs
+                thread = threading.Thread(target=self.read_json, args=([json_list]))
+                thread.start()
+                print(1)
+            except:
+                #---------------------------------
+                # UNDER CONSTRUCTION, create system for return JSON
+                #---------------------------------
+                with self.locks["return_list"]:
+                    self.json_return_list.append()
+                pass
+            # Send return jsons
 
-        # This waits for inputs to do actions
+
         pass
 
     def read_json(self,json_object):
         return_json = None
+        json_object = json.loads(json_object)
         if json_object["action"] == "create_session":
-            if self.verify(json_object["steem-name"]):
-                self.create_session()
+            if self.verify(json_object["steem-name"],json_object["key"]):
+                self.create_session({"steem-account":json_object["steem-name"]})
             else:
                 return_json = json.dumps({"success":False,"error":1}) # Session could not be created
         pass
@@ -85,28 +102,43 @@ class Main():
 
         pass
 
-    def verify(self,name):
+    def verify(self,name,key):
 
         # Verifies that the user exists, and does not already have a session
 
-
+        print(3)
         # This checks if the session exists, if it does not it continues
-        while self.locks["user-sessions"]:
+        with self.locks["user-sessions"]:
             try:
-                self.user_sessions["steem-name"]
+                self.user_sessions[name]
+                print(6)
                 return False
-            except:
+            except Exception as e:
+                print(e)
                 pass
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
+        print(4)
+        s = Steem(keys=key)
+        if interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) != None:
+            # account does exist on our platform. Next checks if the key for the account is correct
+            try:
+                s.follow(self.sending_account, what=['blog'], account=name)
+            except:
+                return False
+            print(5)
+            return True
 
-        if interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) == None:
-            # account does exist on our platform.
-            pass
 
         else:
             # checks if account exists on steem
-            pass
+
+            try:
+                s.follow(self.sending_account, what=['blog'], account=name)
+            except:
+                return False
+            interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
+        return True
 
         # verifies key
 
@@ -188,7 +220,9 @@ class Session:
 
 main = Main("wss://steemd-int.steemit.com","active_key")
 user = {"steem-account":"anarchyhasnogods"}
-main.create_session({"steem-account":"anarchyhasnogods"})
-main.user_sessions["anarchyhasnogods"]["session"].make_purchase("ad-token-perm",2)
+#main.create_session({"steem-account":"anarchyhasnogods"})
+#main.user_sessions["anarchyhasnogods"]["session"].make_purchase("ad-token-perm",2)
+
+main.communication_loop()
 
 print("end")
