@@ -81,8 +81,20 @@ class Main():
             if self.verify(json_object["steem-name"],json_object["key"]):
                 self.create_session({"steem-account":json_object["steem-name"]})
             else:
-                return_json = json.dumps({"success":False,"error":1}) # Session could not be created
-        pass
+                return json.dumps({"success":False,"error":1}) # Session could not be created
+        elif json_object["action"]["type"] == "account":
+            with self.locks["user-sessions"]:
+                # Checks if session exists and key is correct. If not, it returns an error
+                try:
+                    self.user_sessions[json_object["steem-name"]]
+                    if self.verify_key(json_object["steem-name"],json_object["key"]):
+                        self.user_sessions[json_object["steem-name"]]["inputs"].append(json_object["action"])
+                    else:
+                        return json.dumps({"success": False, "error":3}) # The key is incorrect
+                except:
+                    return json.dumps({"success": False, "error":2}) # Session does not exist
+
+                self.user_sessions[json_object["steem-name"]]["inputs"].append(json_object)
 
     def curation_loop(self):
         # This holds all the curation sessions and waits for requests to do something with them
@@ -92,11 +104,10 @@ class Main():
         # Creates session once users key has been verified.
 
         # Each session runs on a different thread.
-
+        print(7)
         with self.locks["user-sessions"]:
             self.user_sessions[user_info["steem-account"]] = \
                 {"user-info":user_info,"session":Session(user_info, self.locks,self, self.steem_node),"inputs":[]}
-
 
 
 
@@ -120,11 +131,9 @@ class Main():
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
         print(4)
         s = Steem(keys=key)
-        if interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) != None:
+        if not interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
-            try:
-                s.follow(self.sending_account, what=['blog'], account=name)
-            except:
+            if not self.verify_key(name,key):
                 return False
             print(5)
             return True
@@ -133,14 +142,19 @@ class Main():
         else:
             # checks if account exists on steem
 
-            try:
-                s.follow(self.sending_account, what=['blog'], account=name)
-            except:
+            if not self.verify_key(name,key):
                 return False
             interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
         return True
 
         # verifies key
+    def verify_key(self,name,key):
+        s = Steem(keys=key)
+
+        try:
+            s.follow(self.sending_account, what=['blog'], account=name)
+        except:
+            return False
 
     def curation_loop(self):
         # Serves as the base for each curation system
@@ -158,16 +172,19 @@ class Session:
         self.curation_session = None # Key for the curation session they are in
 
         self.token_prices = {"token-upvote-perm":0.5,"ad-token-perm":0.75}
-        print(1)
+        thread = threading.Thread(target=self.main_loop)
+        thread.start()
 
-        pass
+
 
     def main_loop(self):
         time_since_last_communication = 0
         sleep_time = 2
-        input_thing = []
+        print(8)
         while True:
+            print(9)
             with self.locks["user-sessions"]:
+                print(10)
                 input_thing = self.main.user_sessions[self.user_info["steem-account"]]["inputs"]
 
             for i in input_thing:
@@ -188,10 +205,26 @@ class Session:
     def read_json(self,json):
         # Takes a json and determines if it is valid if it is what to do.
         # If it is valid it calls the correct function
+
+        if json["type"] == "make_purchase":
+            try:
+                if json["amount"] > 0:
+                    self.make_purchase(json["token"],json["amount"])
+                else:
+
+                    self.return_json({"success": False, "error": 20})  # can only buy tokens
+
+            except:
+                self.return_json({"success": False, "error":10}) # function doesnt work
+
+        elif json["type"] == "get_curation_sessions":
+            self.return_json(self.get_curation_sessions())
         pass
 
     def return_json(self):
         # This takes information returned and creates a json to send back out of it.
+        pass
+    def get_curation_sessions(self):
         pass
 
     def make_purchase(self,token,amount):
@@ -212,13 +245,11 @@ class Session:
             print(e)
             return False
 
-    def create_account(self):
-        # If the user does not have an account they must be created
-        pass
 
 
 
-main = Main("wss://steemd-int.steemit.com","active_key")
+
+main = Main("wss://steemd-int.steemit.com","")
 user = {"steem-account":"anarchyhasnogods"}
 #main.create_session({"steem-account":"anarchyhasnogods"})
 #main.user_sessions["anarchyhasnogods"]["session"].make_purchase("ad-token-perm",2)
