@@ -60,12 +60,16 @@ class Main():
         pass
 
     def communication_loop(self):
+        # waits for internal socket connections (from celery in the flask_app sections)
+        # takes the json sent, and then makes a new thread to process it
+        # also processes jsons sent to get status data of tasks, which is blocking
         TCP_IP = self.TCP_IP
         TCP_PORT = self.TCP_PORT
         BUFFER_SIZE = self.BUFFER_SIZE
         while True:
-            print("This")
             try:
+                # creates re-usable socket and listens until connection is made.
+
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind((TCP_IP, TCP_PORT))
@@ -77,30 +81,23 @@ class Main():
 
                     if addr[0] == TCP_IP:
                         try:
+                            # gives id for retrieval of status for tasks
+
+                            id_num = random.randrange(1000000000000000000000000)
+
                             while True:
-                                print(-1)
-                                id_num = random.randrange(100000000000000000000000)
                                 new_data = conn.recv(BUFFER_SIZE)
-                                new_data.decode()
-                                print(-2)
-                                print(new_data)
                                 if not new_data: break
                                 if not len(new_data) > 0: break
-                                print(-3)
                                 data += new_data.decode()
                                 if not len(new_data) >= BUFFER_SIZE: break
-                            print(-4)
-                            print(data)
+
                             try:
                                 new_list = []
                                 sent = False
                                 if json.loads(data)["action"] == "return_json":
                                     with self.locks["return_list"]:
-                                        print(-5)
                                         for i in range(len(self.info_out)):
-                                            print(-6)
-                                            print(i)
-                                            print(self.info_out[i][0]["idnum"], json.loads(data)["idnum"])
 
                                             if self.info_out[i][0]["idnum"] == json.loads(data)["idnum"]:
                                                 sent = True
@@ -109,17 +106,14 @@ class Main():
                                                 new_list.append(self.info_out[i])
                                         self.info_out = new_list
                                         if not sent:
-                                            print(-12)
                                             conn.send("404".encode())
 
                                 else:
-                                    print(-6)
                                     thread = threading.Thread(target=self.read_json, args=([data, id_num]))
                                     thread.start()
                                     conn.send(json.dumps({"idnum":id_num}).encode())
 
                             except Exception as e:
-                                print(-7)
                                 print(e)
                                 conn.send(json.dumps({"success":False, "error":-1}).encode())
 
@@ -144,6 +138,8 @@ class Main():
             time.sleep(2)
 
     def read_json(self,json_object,idnum):
+        # takes the json and id num and does actions based on what it contains
+        # then creates a status memo based on the id and how the task went.
         print(2)
 
         json_object = json.loads(json_object)
