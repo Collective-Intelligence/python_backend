@@ -92,26 +92,24 @@ class Main():
                             print(-4)
                             print(data)
                             try:
-
+                                new_list = []
+                                sent = False
                                 if json.loads(data)["action"] == "return_json":
                                     with self.locks["return_list"]:
                                         print(-5)
-                                        to_pop = []
                                         for i in range(len(self.info_out)):
+                                            print(-6)
                                             print(i)
-                                            print(self.info_out[i])
+                                            print(self.info_out[i][0]["idnum"], json.loads(data)["idnum"])
 
                                             if self.info_out[i][0]["idnum"] == json.loads(data)["idnum"]:
-                                                to_pop.append(i)
+                                                sent = True
                                                 conn.send(json.dumps(self.info_out[i][0]).encode())
-                                            elif time.time()-self.info_out[2] > 600:
-                                                to_pop.append(i)
-
-                                        print("to_pop", to_pop)
-                                        while len(to_pop) > 0:
-
-                                            self.info_out.pop(to_pop[0])
-                                        else:
+                                            elif not time.time()-self.info_out[i][2] > 600:
+                                                new_list.append(self.info_out[i])
+                                        self.info_out = new_list
+                                        if not sent:
+                                            print(-12)
                                             conn.send("404".encode())
 
                                 else:
