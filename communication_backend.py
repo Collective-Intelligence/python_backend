@@ -96,18 +96,21 @@ class Main():
                                 if json.loads(data)["action"] == "return_json":
                                     with self.locks["return_list"]:
                                         print(-5)
-                                        to_pop = None
+                                        to_pop = []
                                         for i in range(len(self.info_out)):
                                             print(i)
                                             print(self.info_out[i])
 
                                             if self.info_out[i][0]["idnum"] == json.loads(data)["idnum"]:
-                                                to_pop = i
+                                                to_pop.append(i)
                                                 conn.send(json.dumps(self.info_out[i][0]).encode())
-                                        print("to_pop", to_pop)
-                                        if to_pop or to_pop ==0:
+                                            elif time.time()-self.info_out[2] > 600:
+                                                to_pop.append(i)
 
-                                            self.info_out.pop(i)
+                                        print("to_pop", to_pop)
+                                        while len(to_pop) > 0:
+
+                                            self.info_out.pop(to_pop[0])
                                         else:
                                             conn.send("404".encode())
 
@@ -246,7 +249,7 @@ class Main():
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
 
-            self.info_out.append([json, user_info])
+            self.info_out.append([json, user_info,time.time()])
 
         pass
 
