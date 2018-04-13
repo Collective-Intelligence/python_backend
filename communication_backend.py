@@ -4,12 +4,11 @@ import steem
 import time
 import random
 import math
-
+import socket
 from memo_saving import interpret
 from memo_saving import main
 import json
 import steem
-
 import requests
 import json
 import time
@@ -42,47 +41,121 @@ class Main():
         self.curation_sessions = {}
         self.steem_node = node
         self.active_key = active_key
-        self.input_info = []
+        self.info_out = []
         self.json_return_list = []
+        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock(),"return_list":threading.Lock()}
+
+        self.TCP_IP = '127.0.0.1'
+        self.TCP_PORT = 5005
+        self.BUFFER_SIZE = 1024
+
+
+        thread = threading.Thread(target=self.communication_loop)
+        thread.start()
+
+
 
         # {"Session":{"class":class,"new_input":[[user1/system1,input1],[user2/system2,input2]], "lock":lock}}
 
-        self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock(),"return_list":threading.Lock()}
         pass
 
     def communication_loop(self):
-
-        json_list = []
+        TCP_IP = self.TCP_IP
+        TCP_PORT = self.TCP_PORT
+        BUFFER_SIZE = self.BUFFER_SIZE
         while True:
-
-            json_list = input()
+            print("This")
             try:
-                print(json_list, type(json_list), len([json_list]))
-                # creates thread to do stuff with inputs
-                thread = threading.Thread(target=self.read_json, args=([json_list]))
-                thread.start()
-                print(1)
-            except:
-                #---------------------------------
-                # UNDER CONSTRUCTION, create system for return JSON
-                #---------------------------------
-                with self.locks["return_list"]:
-                    self.json_return_list.append()
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind((TCP_IP, TCP_PORT))
+                s.listen(0)
+                while True:
+                    print("here")
+                    conn, addr = s.accept()
+                    data = ""
+
+                    if addr[0] == TCP_IP:
+                        try:
+                            while True:
+                                print(-1)
+                                id_num = random.randrange(100000000000000000000000)
+                                new_data = conn.recv(BUFFER_SIZE)
+                                new_data.decode()
+                                print(-2)
+                                print(new_data)
+                                if not new_data: break
+                                if not len(new_data) > 0: break
+                                print(-3)
+                                data += new_data.decode()
+                                if not len(new_data) >= BUFFER_SIZE: break
+                            print(-4)
+                            print(data)
+                            try:
+
+                                if json.loads(data)["action"] == "return_json":
+                                    with self.locks["return_list"]:
+                                        print(-5)
+                                        to_pop = None
+                                        for i in range(len(self.info_out)):
+                                            print(i)
+                                            print(self.info_out[i])
+
+                                            if self.info_out[i][0]["idnum"] == json.loads(data)["idnum"]:
+                                                to_pop = i
+                                                conn.send(json.dumps(self.info_out[i][0]).encode())
+                                        print("to_pop", to_pop)
+                                        if to_pop or to_pop ==0:
+
+                                            self.info_out.pop(i)
+                                        else:
+                                            conn.send("404".encode())
+
+                                else:
+                                    print(-6)
+                                    thread = threading.Thread(target=self.read_json, args=([data, id_num]))
+                                    thread.start()
+                                    conn.send(json.dumps({"idnum":id_num}).encode())
+
+                            except Exception as e:
+                                print(-7)
+                                print(e)
+                                conn.send(json.dumps({"success":False, "error":-1}).encode())
+
+                        except Exception as e:
+                            print(e)
+                            pass
+
+                        conn.close()
+
+
+                        # creates thread to do stuff with inputs
+
+
+            except Exception as e:
+                print(e)
                 pass
-            # Send return jsons
 
 
-        pass
 
-    def read_json(self,json_object):
+
+
+            time.sleep(2)
+
+    def read_json(self,json_object,idnum):
         print(2)
-        return_json = None
+
         json_object = json.loads(json_object)
+        user_info = {"steem-account":json_object["steem-name"]}
+        json_object["idnum"] = idnum
+
         if json_object["action"] == "create_session":
             if self.verify(json_object["steem-name"],json_object["key"]):
-                self.create_session({"steem-account":json_object["steem-name"]})
+                self.create_session(user_info)
+                self.return_json({"success":True,"action":"session created", "idnum":json_object["idnum"]},user_info)
+
             else:
-                return json.dumps({"success":False,"error":1}) # Session could not be created
+                self.return_json({"success":False,"error":1,"idnum":json_object["idnum"]},user_info) # Session could not be created
 
         elif json_object["action"]["type"] == "account":
             print(9)
@@ -94,18 +167,15 @@ class Main():
                     self.user_sessions[json_object["steem-name"]]
                     if self.verify_key(json_object["steem-name"],json_object["key"]):
                         print(24)
+                        json_object["action"]["idnum"] = json_object["idnum"]
                         self.user_sessions[json_object["steem-name"]]["inputs"].append(json_object["action"])
                         print("xxxxxxxxxx",self.user_sessions)
                     else:
-                        return json.dumps({"success": False, "error":3}) # The key is incorrect
+                        self.return_json({"success": False, "error":3,"idnum":json_object["idnum"]},user_info) # The key is incorrect
                 except Exception as e:
-                    print(e)
-                    print(22)
-                    print(self.user_sessions)
-                    return json.dumps({"success": False, "error":2}) # Session does not exist
 
-        print(21)
-        print(json_object["action"])
+                    self.return_json({"success": False, "error":2,"idnum":json_object["idnum"]},user_info) # Session does not exist
+
     def curation_loop(self):
         # This holds all the curation sessions and waits for requests to do something with them
         pass
@@ -173,13 +243,18 @@ class Main():
         # Serves as the base for each curation system
 
         pass
+    def return_json(self,json,user_info):
+        with self.locks["return_list"]:
 
+            self.info_out.append([json, user_info])
+
+        pass
 
 # Each session runs on their own thread (through main_loop), is able to communicate with everything within the main class
 class Session:
     def __init__(self, user_info, locks, main,steem_node):
         self.main = main
-        self.user_info = user_info # {"steem-account":acc}
+        self.user_info = user_info # {"steem-account":str}
         self.steem_node = steem_node
         self.locks = locks
         self.curation_session = None # Key for the curation session they are in
@@ -211,30 +286,32 @@ class Session:
 
         pass
 
-    def read_json(self,json):
+    def read_json(self,info):
         # Takes a json and determines if it is valid if it is what to do.
         # If it is valid it calls the correct function
         print(24)
-        if json["action_type"] == "make_purchase":
+        if info["action_type"] == "make_purchase":
             print(25)
             try:
                 print(12)
-                if json["amount"] > 0:
-                    self.make_purchase(json["token_type"],json["amount"])
+                if info["amount"] > 0:
+                    self.make_purchase(info["token_type"],info["amount"])
+                    self.return_json({"success": True, "action":"purchase_tokens","idnum":info["idnum"]})
                     print(26)
                 else:
 
-                    self.return_json({"success": False, "error": 20})  # can only buy tokens
+                    self.return_json({"success": False, "error": 20,"idnum":info["idnum"]})  # can only buy tokens
 
             except:
-                self.return_json({"success": False, "error":10}) # function doesnt work
+                self.return_json({"success": False, "error":10,"idnum":info["idnum"]}) # function doesnt work
 
-        elif json["action_type"] == "get_curation_sessions":
+        elif info["action_type"] == "get_curation_sessions":
             self.return_json(self.get_curation_sessions())
         pass
 
-    def return_json(self):
+    def return_json(self,json):
         # This takes information returned and creates a json to send back out of it.
+        self.main.return_json(json,self.user_info)
         pass
     def get_curation_sessions(self):
         pass
@@ -269,6 +346,5 @@ user = {"steem-account":"anarchyhasnogods"}
 #main.create_session({"steem-account":"anarchyhasnogods"})
 #main.user_sessions["anarchyhasnogods"]["session"].make_purchase("ad-token-perm",2)
 
-main.communication_loop()
 
 print("end")
