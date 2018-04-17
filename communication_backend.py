@@ -21,6 +21,7 @@ from smtplib import SMTP as SMTP
 import random
 from multiprocessing import Process
 import threading
+import new_curation_system
 
 # Will spawn threads for I/O with user
 # Will use processes for blockchain related tasks
@@ -39,15 +40,25 @@ class Main():
         self.memo_account = "co-in-memo"
         self.user_sessions = {}
         self.curation_sessions = {}
+        #{tag:{"TCP_IP":ip,"TPC_PORT":port,"BUFFER_SIZE":buffer_size}}
+        #uses ports from 37000-38000
+
         self.steem_node = node
         self.active_key = active_key
         self.info_out = []
         self.json_return_list = []
+
         self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock(),"return_list":threading.Lock()}
 
         self.TCP_IP = '127.0.0.1'
         self.TCP_PORT = 5005
         self.BUFFER_SIZE = 1024
+
+
+        # this brings it to about 20 posts per curation system, when it is full
+        # Force user to spend at least 3-5 min per post to keep votes lower
+        self.posts_per_user_ratio = 1/5.0
+        self.users_per_curation_system = 100
 
 
         thread = threading.Thread(target=self.communication_loop)
@@ -56,9 +67,6 @@ class Main():
 
 
         # {"Session":{"class":class,"new_input":[[user1/system1,input1],[user2/system2,input2]], "lock":lock}}
-
-        pass
-
     def communication_loop(self):
         # waits for internal socket connections (from celery in the flask_app sections)
         # takes the json sent, and then makes a new thread to process it
@@ -68,6 +76,7 @@ class Main():
         BUFFER_SIZE = self.BUFFER_SIZE
         while True:
             try:
+                num = 1
                 # creates re-usable socket and listens until connection is made.
 
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -75,7 +84,7 @@ class Main():
                 s.bind((TCP_IP, TCP_PORT))
                 s.listen(0)
                 while True:
-                    print("here")
+                    num+= 1
                     conn, addr = s.accept()
                     data = ""
 
@@ -135,12 +144,11 @@ class Main():
 
 
 
-            time.sleep(2)
 
     def read_json(self,json_object,idnum):
+        print(json_object)
         # takes the json and id num and does actions based on what it contains
         # then creates a status memo based on the id and how the task went.
-        print(2)
 
         json_object = json.loads(json_object)
         user_info = {"steem-account":json_object["steem-name"]}
@@ -155,64 +163,69 @@ class Main():
                 self.return_json({"success":False,"error":1,"idnum":json_object["idnum"]},user_info) # Session could not be created
 
         elif json_object["action"]["type"] == "account":
-            print(9)
             with self.locks["user-sessions"]:
-                print(20)
                 # Checks if session exists and key is correct. If not, it returns an error
                 try:
-                    print(21)
+
                     self.user_sessions[json_object["steem-name"]]
                     if self.verify_key(json_object["steem-name"],json_object["key"]):
-                        print(24)
                         json_object["action"]["idnum"] = json_object["idnum"]
                         self.user_sessions[json_object["steem-name"]]["inputs"].append(json_object["action"])
                         print("xxxxxxxxxx",self.user_sessions)
                     else:
                         self.return_json({"success": False, "error":3,"idnum":json_object["idnum"]},user_info) # The key is incorrect
                 except Exception as e:
+                    print(e)
+                    print(100)
 
                     self.return_json({"success": False, "error":2,"idnum":json_object["idnum"]},user_info) # Session does not exist
 
-    def curation_loop(self):
-        # This holds all the curation sessions and waits for requests to do something with them
-        pass
+
+
+
+
+
+
+
+
+
+
 
     def create_session(self,user_info):
         # Creates session once users key has been verified.
 
         # Each session runs on a different thread.
-        print(7)
         with self.locks["user-sessions"]:
             self.user_sessions[user_info["steem-account"]] = \
                 {"user-info":user_info,"session":Session(user_info, self.locks,self, self.steem_node),"inputs":[]}
 
         print(self.user_sessions)
-        pass
 
     def verify(self,name,key):
 
         # Verifies that the user exists, and does not already have a session
 
-        print(3)
         # This checks if the session exists, if it does not it continues
         with self.locks["user-sessions"]:
             try:
                 self.user_sessions[name]
-                print(6)
                 return False
             except Exception as e:
                 print(e)
                 pass
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
-        print(4)
-        s = Steem(keys=key)
+        try:
+            s = Steem(keys=key)
+        except Exception as e:
+            print("99")
+            print(e)
+
+            return False
         if not interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
             if not self.verify_key(name,key):
-                print(6)
                 return False
-            print(5)
             return True
 
 
@@ -236,10 +249,7 @@ class Main():
             print(e)
             return False
 
-    def curation_loop(self):
-        # Serves as the base for each curation system
 
-        pass
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
 
@@ -254,7 +264,8 @@ class Session:
         self.user_info = user_info # {"steem-account":str}
         self.steem_node = steem_node
         self.locks = locks
-        self.curation_session = None # Key for the curation session they are in
+        self.vote_lock = threading.Lock()
+        self.time_of_last_vote = 0
 
         self.token_prices = {"token-upvote-perm":0.5,"ad-token-perm":0.75}
         thread = threading.Thread(target=self.main_loop)
@@ -297,21 +308,21 @@ class Session:
                     print(26)
                 else:
 
-                    self.return_json({"success": False, "error": 20,"idnum":info["idnum"]})  # can only buy tokens
+                    self.return_json({"success": False, "error": -20,"idnum":info["idnum"]})  # can only buy tokens
 
             except:
                 self.return_json({"success": False, "error":10,"idnum":info["idnum"]}) # function doesnt work
 
-        elif info["action_type"] == "get_curation_sessions":
-            self.return_json(self.get_curation_sessions())
+
+
+
         pass
 
     def return_json(self,json):
         # This takes information returned and creates a json to send back out of it.
         self.main.return_json(json,self.user_info)
         pass
-    def get_curation_sessions(self):
-        pass
+    
 
     def make_purchase(self,token,amount):
         # This takes GP the user has and buys a Token from it.
