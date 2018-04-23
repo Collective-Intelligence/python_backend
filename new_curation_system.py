@@ -65,6 +65,7 @@ class Main:
                 # creates re-usable socket and listens until connection is made.
 
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                print(TCP_PORT)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind((TCP_IP, TCP_PORT))
                 s.listen(0)
@@ -128,6 +129,7 @@ class Main:
 
 
     def read_json(self,info,idnum):
+        print("READ JSON", info)
         users_that_can_create = ["anarchyhasnogods","co-in"]
         info = json.loads(info)
         info["idnum"] = idnum
@@ -144,11 +146,15 @@ class Main:
                 self.return_json({"success": False, "error": 1,"idnum":info["idnum"]},idnum)
         elif info["action"]["type"] == "create_session":
 
+
             try:
+                print(-1)
                 if not(info["steem-name"] in users_that_can_create and self.verify_key(info["steem-name"],info["key"])):
 
                     self.return_json({"success": False, "error": -20,"idnum":info["idnum"]},idnum)
-                    return
+                    print("HERE")
+
+                print(0)
                 with self.locks["post-holder"]:
                     print("HERE", info)
                     print(info["action"])
@@ -162,8 +168,17 @@ class Main:
                 print("here")
                 self.return_json({"success": False, "error": 20, "idnum": info["idnum"]}, idnum)
 
-        elif info["action"] == "session_list":
-            pass
+        elif info["action"]["type"] == "session_list":
+            try:
+                print(self.post_holders)
+                with self.locks["post-holder"]:
+                    post_holder_list = []
+
+                    for i in self.post_holders:
+                        post_holder_list.append([i,len(self.post_holders[i].post_list)])
+                    self.return_json({"post_holders":post_holder_list,"success":True,"idnum":idnum},idnum)
+            except:
+                self.return_json({"success": False, "error": 0, "idnum": info["idnum"]}, idnum)
 
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
@@ -243,7 +258,6 @@ class PostHolder:
         self.key = main.key
         self.memo_account = main.memo_account
         self.nodes = main.nodes
-        self.account_info = {}
         self.ratio_num = main.ratio_num
         self.TCP_IP = main.TCP_IP
         self.TCP_PORT = main.TCP_PORT
@@ -394,5 +408,5 @@ class PostHolder:
 
 
 
-thing = Main(100,1000000,"co-in","active_key","space-pictures",["wss://rpc.buildteam.io"],"posting key", 0.5)
+thing = Main(100,1000000,"co-in","active_key","co-in-memo",["wss://rpc.buildteam.io"],"posting key", 0.5)
 # ["post-link", "author","submitor acc]

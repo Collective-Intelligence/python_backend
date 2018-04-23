@@ -21,7 +21,6 @@ from smtplib import SMTP as SMTP
 import random
 from multiprocessing import Process
 import threading
-import new_curation_system
 
 # Will spawn threads for I/O with user
 # Will use processes for blockchain related tasks
@@ -52,6 +51,7 @@ class Main():
 
         self.TCP_IP = '127.0.0.1'
         self.TCP_PORT = 5005
+        print(self.TCP_PORT)
         self.BUFFER_SIZE = 1024
 
 
@@ -72,7 +72,7 @@ class Main():
         # takes the json sent, and then makes a new thread to process it
         # also processes jsons sent to get status data of tasks, which is blocking
         TCP_IP = self.TCP_IP
-        TCP_PORT = self.TCP_PORT
+        TCP_PORT = 5005
         BUFFER_SIZE = self.BUFFER_SIZE
         while True:
             try:
@@ -80,7 +80,8 @@ class Main():
                 # creates re-usable socket and listens until connection is made.
 
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                print(TCP_PORT)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 2)
                 s.bind((TCP_IP, TCP_PORT))
                 s.listen(0)
                 while True:
@@ -322,7 +323,7 @@ class Session:
         # This takes information returned and creates a json to send back out of it.
         self.main.return_json(json,self.user_info)
         pass
-    
+
 
     def make_purchase(self,token,amount):
         # This takes GP the user has and buys a Token from it.
