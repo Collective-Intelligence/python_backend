@@ -33,7 +33,7 @@ class Main:
         self.memo_account = memo_account
         self.votes_finished = False
         self.nodes = nodes
-        self.account_info = {}
+        self.account_info = {} # keeps list of recent account interactions, to help with abuse
         self.ratio_num = 0.75
         self.TCP_IP = '127.0.0.1'
         self.BUFFER_SIZE = 1024
@@ -126,7 +126,30 @@ class Main:
                 print(e)
                 pass
 
+    def check_account_action(self, info):
+        # checks if a user has made an action recently, if it is not in the system makes an entry
+        # if the user has not made an action recently it is updated
+        with self.locks["user_actions"]:
+            print(self.account_info)
+            try:
+                self.account_info[info["steem-name"]]
+            except:
 
+                self.account_info[info["steem-name"]] = {"steem-name":info["steem-name"], "time":time.time()}
+                return True
+
+        try: # easy way to make it check through all of them every so often to stop it from getting too big
+            1/random.randrange(100)
+        except:
+            for i in self.account_info:
+                if self.account_info[i]["time"] - time.time() > 60 * 60:
+                    self.account_info.pop(i, None)
+        if self.account_info[info["steem-name"]]["time"] -time.time() > 2.5 * 60:
+            self.account_info[info["steem-name"]]["time"] = time.time()
+            return True
+        else:
+
+            return False
 
     def read_json(self,info,idnum):
         print("READ JSON", info)
@@ -134,12 +157,21 @@ class Main:
         info = json.loads(info)
         info["idnum"] = idnum
 
-        if info["action"]["type"] == "user":
+        if info["action"]["type"] == "add_post":
             try:
                 if self.verify_key(info["steem-name"],info["key"]):
-                    with self.locks["post-holder"]:
+                    if self.check_account_action(info):
 
-                        self.post_holders[info["action"]["tag"]].read_json(info)
+
+
+                        with self.locks["post-holder"]:
+
+                            self.post_holders[info["action"]["tag"]].add_post(info["action"]["post-link"],info["steem-name"])
+                    else:
+                        self.return_json({"success": False, "error": 3, "idnum": info["idnum"]}, idnum)
+                else:
+                    self.return_json({"success": False, "error": 2, "idnum": info["idnum"]}, idnum)
+
 
 
             except:
@@ -264,27 +296,34 @@ class PostHolder:
         self.BUFFER_SIZE = main.BUFFER_SIZE
         print("ENDTHING")
 
-    def read_json(self,info):
-        pass
-        print("HEREEERREEREE")
 
-    def add_post(self, post_link, submission_author, post_author):
+
+    def add_post(self, post_link, submission_author):
+        print("ADDPOST")
+        #https://steemit.com/politics/@anarchyhasnogods/a-communist-definition-of-property
+        # example post link
+        new_link = post_link.split("@")
+        perm_link = new_link[1].split("/") # brings it to ["author","permlink"]
+
         # post_list = [[postname, submission author, vote list, advertisement_total]]
+        print("ADDPOST1")
 
         # gets account info for reward calculation
-        account_info_post = interpret.get_account_info(post_author)
+        account_info_post = interpret.get_account_info(perm_link[1])
+        print("ADDPOST2")
         if account_info_post != None:
             account_info_post = account_info_post[2]
             ad_tokens = int(account_info_post["ad-token-perm"])  # + int(account_info_post["ad-token-temp"])
         else:
             ad_tokens = 0
         # Gets info on post author
+        print("ADDPOST3")
 
-
-        self.account_info[post_link] = account_info_post
+        print("ADDPOST4")
         # uses add tokens to calculate visibility within system, and save information needed for later.
-        self.post_list.append([post_link, submission_author, [], 10 + int(math.sqrt(ad_tokens)), time.time(), post_author])
-
+        self.post_list.append([post_link, submission_author, [], 10 + int(math.sqrt(ad_tokens)), time.time(), perm_link])
+        print("ADDPOST5 ")
+        print(self.post_list)
         self.set_random()
 
 
