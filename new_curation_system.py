@@ -167,6 +167,8 @@ class Main:
                         with self.locks["post-holder"]:
 
                             self.post_holders[info["action"]["tag"]].add_post(info["action"]["post-link"],info["steem-name"])
+
+                        self.return_json({"success": True, "idnum": info["idnum"]}, idnum)
                     else:
                         self.return_json({"success": False, "error": 3, "idnum": info["idnum"]}, idnum)
                 else:
@@ -211,6 +213,16 @@ class Main:
                     self.return_json({"post_holders":post_holder_list,"success":True,"idnum":idnum},idnum)
             except:
                 self.return_json({"success": False, "error": 0, "idnum": info["idnum"]}, idnum)
+        elif info["action"]["type"] == "get_post":
+            try:
+                with self.locks["post-holder"]:
+                    post=self.post_holders[info["action"]["tag"]].get_random()[0]
+                self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
+
+
+
+            except:
+                self.return_json({"success": False, "error": 10, "idnum": info["idnum"]}, idnum)
 
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
