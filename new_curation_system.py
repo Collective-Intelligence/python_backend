@@ -176,7 +176,8 @@ class Main:
 
 
 
-            except:
+            except Exception as e:
+                print(e)
                 self.return_json({"success": False, "error": 1,"idnum":info["idnum"]},idnum)
         elif info["action"]["type"] == "create_session":
 
@@ -216,7 +217,7 @@ class Main:
         elif info["action"]["type"] == "get_post":
             try:
                 with self.locks["post-holder"]:
-                    post=self.post_holders[info["action"]["tag"]].get_random()[0]
+                    post =self.post_holders[info["action"]["tag"]].get_random()
                 self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
 
 
@@ -224,17 +225,12 @@ class Main:
             except:
                 self.return_json({"success": False, "error": 10, "idnum": info["idnum"]}, idnum)
 
+
+
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
 
             self.info_out.append([json, user_info,time.time()])
-
-
-
-
-
-
-
 
 
     def verify(self,name,key):
@@ -307,38 +303,39 @@ class PostHolder:
         self.TCP_PORT = main.TCP_PORT
         self.BUFFER_SIZE = main.BUFFER_SIZE
         print("ENDTHING")
+        thread = threading.Thread(target=self.post_check_loop)
+        thread.start()
 
 
 
     def add_post(self, post_link, submission_author):
-        print("ADDPOST")
+        with self.lock:
+            print("ADDPOST")
         #https://steemit.com/politics/@anarchyhasnogods/a-communist-definition-of-property
         # example post link
-        new_link = post_link.split("@")
-        perm_link = new_link[1].split("/") # brings it to ["author","permlink"]
+            new_link = post_link.split("@")
+            perm_link = new_link[1].split("/") # brings it to ["author","permlink"]
 
         # post_list = [[postname, submission author, vote list, advertisement_total]]
-        print("ADDPOST1")
+            print("ADDPOST1")
 
         # gets account info for reward calculation
-        account_info_post = interpret.get_account_info(perm_link[1])
-        print("ADDPOST2")
-        if account_info_post != None:
-            account_info_post = account_info_post[2]
-            ad_tokens = int(account_info_post["ad-token-perm"])  # + int(account_info_post["ad-token-temp"])
-        else:
-            ad_tokens = 0
+            account_info_post = interpret.get_account_info(perm_link[1])
+            print("ADDPOST2")
+            if account_info_post != None:
+                account_info_post = account_info_post[2]
+                ad_tokens = int(account_info_post["ad-token-perm"])  # + int(account_info_post["ad-token-temp"])
+            else:
+                ad_tokens = 0
         # Gets info on post author
-        print("ADDPOST3")
+            print("ADDPOST3")
 
-        print("ADDPOST4")
+            print("ADDPOST4")
         # uses add tokens to calculate visibility within system, and save information needed for later.
-        self.post_list.append([post_link, submission_author, [], 10 + int(math.sqrt(ad_tokens)), time.time(), perm_link])
-        print("ADDPOST5 ")
-        print(self.post_list)
-        self.set_random()
-
-
+            self.post_list.append([post_link, submission_author, [], 10 + int(math.sqrt(ad_tokens)), time.time(), perm_link])
+            print("ADDPOST5 ")
+            print(self.post_list)
+            self.set_random()
 
     def set_random(self):
         # takes list of all posts produced earlier and shuffles them visibility is based on amount of post in list
@@ -350,35 +347,37 @@ class PostHolder:
         random.shuffle(self.random_posts)
 
     def get_random(self):
+        with self.lock:
         # finds the next post in the random order and removes it
         # when it runs out it just creates the list again
         # this forces the posts to be seen roughly the same amount of times as their chance
-        try:
-            if len(self.random_posts) == 0:
+            try:
+                if len(self.random_posts) == 0:
+                    self.set_random()
+                return self.random_posts.pop(0)
+            except AttributeError:
                 self.set_random()
-            return self.random_posts.pop(0)
-        except AttributeError:
-            self.set_random()
-            return self.get_random()
+                return self.get_random()
 
     def add_vote(self, vote, post):
+        with self.lock:
         # vote = [voter, vote]
         # vote is either -1, 0 or +1
         # -1 = plag, 0 = ignore, +1 = vote for
         # goes through every post and checks if it is the correct one, then every voter to see if it has been voted on already
-        #print(vote,post)
-        already_voted = False
-        for i in self.post_list:
-            if post[0] == i[0]:
-                for ii in i[2]:
-                    if ii[0] == vote[0]:
-                        already_voted = True  # so that it changes it instead of adding a new vote onto the end
-                        ii[1] = vote[1]
+        # print(vote,post)
+            already_voted = False
+            for i in self.post_list:
+                if post[0] == i[0]:
+                    for ii in i[2]:
+                        if ii[0] == vote[0]:
+                            already_voted = True  # so that it changes it instead of adding a new vote onto the end
+                            ii[1] = vote[1]
+                            break
+                    if not already_voted:
+                        i[2].append(vote)
+                    else:
                         break
-                if not already_voted:
-                    i[2].append(vote)
-                else:
-                    break
 
 
 
@@ -400,7 +399,6 @@ class PostHolder:
         for i in self.nodes:
             try:
                 steem = Steem(node=i, keys=self.posting_key)
-                print()
                 steem.vote(post_link, equation, account=self.sending_account)
                 return equation
 
@@ -410,24 +408,43 @@ class PostHolder:
                 print(e)
                 pass
         return 0
+
     def post_check_loop(self):
+        while True:
+            try:
+                print("sleep")
+                time.sleep(10)
+                print("woke")
+                with self.lock:
+                    print(self.post_list)
+                    new_post_list = []
+                    for i in self.post_list:
+                        print(i)
+                        print(time.time() - i[4])
+                        if time.time() - i[4] > 60 * 3:
+
+                            self.finish_post(i)
+                        else:
+                            new_post_list.append(i)
+                    self.post_list = new_post_list
+
+
+            except Exception as e:
+                print(e)
+                pass
         pass
 
-    def finish_post_set(self,post):
-
+    def finish_post(self,post):
+        i = post
         already_vote = False
         for ii in self.nodes:
 
             s = Steem(node=ii)
 
-            search_id =  i[0]
-            print(search_id)
-            search_id = search_id.split("/")
-            print("HERE")
-            print(search_id)
-            search_id2 = search_id[0].split("@", 1)
-            vote_list = s.get_active_votes(search_id2[1], search_id[1])
-
+            search_id = [i[5][0],i[5][1]]
+            print("GETTING VOTES")
+            vote_list = s.get_active_votes("@"+search_id[0], search_id[1])
+            print("VOTES GOTTEN")
             for iii in vote_list:
 
                 if iii["voter"] == self.sending_account:
@@ -439,18 +456,13 @@ class PostHolder:
             votes = 0
             for vote in i[2]:
                 if vote[1] == 1:
-                    in_list = False
-                    for ii in account_update_list:
-                        if ii[0] == vote[0]:
-                            in_list = True
-                            ii[1].append(i[0])
-                            break
+
                     votes += 1
 
             # Make post memo, this sits idle on chain until curation rewards are paid out.
-            ratio = round(votes/len(i[2]),3)
+            ratio = round(votes/(len(i[2]) + 2),3)
             vote_size = round(self.make_vote(ratio,i[0]),2)
-            interpret.vote_post(i[0], i[1], int(i[4]),i[2], votes / len(i[2]),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
+            interpret.vote_post(i[0], i[1], int(i[4]),i[2], votes / (len(i[2]) + 2),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
 
 
 
