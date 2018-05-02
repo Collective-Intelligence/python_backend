@@ -142,9 +142,9 @@ class Main:
             1/random.randrange(100)
         except:
             for i in self.account_info:
-                if self.account_info[i]["time"] - time.time() > 60 * 60:
+                if time.time() - self.account_info[i]["time"] > 60 * 60:
                     self.account_info.pop(i, None)
-        if self.account_info[info["steem-name"]]["time"] -time.time() > 2.5 * 60:
+        if time.time()-self.account_info[info["steem-name"]]["time"] > 0 * 60:
             self.account_info[info["steem-name"]]["time"] = time.time()
             return True
         else:
@@ -215,9 +215,18 @@ class Main:
             except:
                 self.return_json({"success": False, "error": 0, "idnum": info["idnum"]}, idnum)
         elif info["action"]["type"] == "get_post":
+
+            if not self.verify_key(info["steem-name"], info["key"]):
+                self.return_json({"success": False, "error": -1, "idnum": info["idnum"]}, idnum)
+
+                return
+            if not self.check_account_action(info):
+                self.return_json({"success": False, "error": -2, "idnum": info["idnum"]}, idnum)
+                return
+
             try:
                 with self.locks["post-holder"]:
-                    post =self.post_holders[info["action"]["tag"]].get_random()
+                    post =self.post_holders[info["action"]["tag"]].get_random(info["steem-name"])
                 self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
 
 
@@ -226,6 +235,25 @@ class Main:
                 self.return_json({"success": False, "error": 10, "idnum": info["idnum"]}, idnum)
 
 
+        elif info["action"]["type"] == "add_vote":
+            if not self.verify_key(info["steem-name"], info["key"]):
+                self.return_json({"success": False, "error": -1, "idnum": info["idnum"]}, idnum)
+
+                return
+            if not self.check_account_action(info):
+                self.return_json({"success": False, "error": -2, "idnum": info["idnum"]}, idnum)
+                return
+            try:
+                with self.locks["post-holder"]:
+                    if self.post_holders[info["action"]["tag"]].add_vote([info["steem-name"],info["action"]["vote"][1]],info["action"]["post"]):
+
+                        self.return_json({"success": True, "idnum": info["idnum"]}, idnum)
+                    else:
+                        self.return_json({"success": False,"error":21, "idnum": info["idnum"]}, idnum)
+
+
+            except:
+                self.return_json({"success": False, "error": 20, "idnum": info["idnum"]}, idnum)
 
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
@@ -343,10 +371,10 @@ class PostHolder:
         self.random_posts = []
         for i in self.post_list:
             for ii in range(i[3]):
-                self.random_posts.append(i)
+                self.random_posts.append([i,i[3]])
         random.shuffle(self.random_posts)
 
-    def get_random(self):
+    def get_random(self,steem_name):
         with self.lock:
         # finds the next post in the random order and removes it
         # when it runs out it just creates the list again
@@ -354,13 +382,44 @@ class PostHolder:
             try:
                 if len(self.random_posts) == 0:
                     self.set_random()
-                return self.random_posts.pop(0)
+                len_num = 1000
+                ad_token_bonus = 100
+                print("RANDOM1")
+                while len_num > 30 + ad_token_bonus:
+                    return_post = self.random_posts.pop(0)
+                    ad_token_bonus = return_post[1]
+                    return_post = return_post[0]
+                    len_num = len(return_post[2])
+                    print("RANDOM2")
+                    if ad_token_bonus > 40:
+                        ad_token_bonus = 40
+                self.add_vote([steem_name,0],return_post,is_get_random=True)
+                print("RANDOM3")
+                return return_post
             except AttributeError:
                 self.set_random()
                 return self.get_random()
 
-    def add_vote(self, vote, post):
+    def add_vote(self, vote, post, is_get_random=False):
+        print("ADDVOTE1")
+        print(vote,post,is_get_random)
+        if is_get_random:
+            for i in self.post_list:
+                print("ADDVOTE 2", i)
+                print(i[0], post[0])
+
+                if i[0] == post[0]:
+                    print("ADDVOTE 3")
+
+                    i[2].append(vote)
+                    print("ADDVOTE 4")
+
+
+            return True
+
+
         with self.lock:
+            print("ADDVOTEX")
         # vote = [voter, vote]
         # vote is either -1, 0 or +1
         # -1 = plag, 0 = ignore, +1 = vote for
@@ -368,18 +427,23 @@ class PostHolder:
         # print(vote,post)
             already_voted = False
             for i in self.post_list:
-                if post[0] == i[0]:
+                print("ADDVOTEY")
+
+                if post == i[0]:
                     for ii in i[2]:
+                        print("ADDVOTEZ")
                         if ii[0] == vote[0]:
                             already_voted = True  # so that it changes it instead of adding a new vote onto the end
                             ii[1] = vote[1]
+                            return True
                             break
                     if not already_voted:
-                        i[2].append(vote)
+                        return False
+                        #i[2].append(vote)
                     else:
                         break
 
-
+        return False
 
     def make_vote(self, ratio, post_link):
         # takes ratio and post link and calculates the vote on the post, and returns it for use in the post memo
@@ -443,7 +507,9 @@ class PostHolder:
 
             search_id = [i[5][0],i[5][1]]
             print("GETTING VOTES")
-            vote_list = s.get_active_votes("@"+search_id[0], search_id[1])
+            #vote_list = s.get_active_votes("@"+search_id[0], search_id[1])
+            vote_list = []
+            # s.get_active_votes is broken?
             print("VOTES GOTTEN")
             for iii in vote_list:
 
@@ -471,5 +537,4 @@ class PostHolder:
 
 
 
-thing = Main(100,1000000,"co-in","active_key","co-in-memo",["wss://rpc.buildteam.io"],"posting key", 0.5)
 # ["post-link", "author","submitor acc]
