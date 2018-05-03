@@ -348,7 +348,8 @@ class PostHolder:
             print("ADDPOST1")
 
         # gets account info for reward calculation
-            account_info_post = interpret.get_account_info(perm_link[1])
+            account_info_post = interpret.get_account_info(perm_link[1],self.main.sending_account,self.main.memo_account,self.main.nodes[0])
+
             print("ADDPOST2")
             if account_info_post != None:
                 account_info_post = account_info_post[2]
@@ -410,7 +411,6 @@ class PostHolder:
 
                 if i[0] == post[0]:
                     print("ADDVOTE 3")
-
                     i[2].append(vote)
                     print("ADDVOTE 4")
 
@@ -445,25 +445,34 @@ class PostHolder:
 
         return False
 
-    def make_vote(self, ratio, post_link):
+    def make_vote(self, ratio, post_link,account_name):
+        print("HERE 1")
+        account_info_post = interpret.get_account_info(account_name, self.main.sending_account, self.main.memo_account,
+                                                       self.main.nodes[0])[2]
         # takes ratio and post link and calculates the vote on the post, and returns it for use in the post memo
         if ratio < self.vote_threshold:
+            print("HERE1", ratio, self.vote_threshold)
             return 0
-        if self.account_info[post_link] != None:
-            upvote_tokens = self.account_info[post_link]["token-upvote-perm"] #+ self.account_info[post_link]["token-upvote-temp"]
+        print("HERE 2")
+        if account_info_post != None:
+            upvote_tokens = account_info_post["token-upvote-perm"] #+ self.account_info[post_link]["token-upvote-temp"]
         else:
             upvote_tokens = 0
         print("UPVOTE TOKENS", upvote_tokens)
 
         equation = self.average_post[0] * (math.sqrt(upvote_tokens)/25 + 1) * (ratio/self.average_post[1])
+        print(equation)
         if equation > 100:
             equation = 100
         elif equation < 0.1:
+            print("HERE3")
             return 0
         for i in self.nodes:
             try:
+                print("HERE5")
                 steem = Steem(node=i, keys=self.posting_key)
-                steem.vote(post_link, equation, account=self.sending_account)
+                print("@"+post_link.split("@")[1],equation , self.sending_account)
+                steem.vote("@"+post_link.split("@")[1], equation, account=self.sending_account)
                 return equation
 
 
@@ -471,6 +480,7 @@ class PostHolder:
                 print("exception")
                 print(e)
                 pass
+        print("HERE4")
         return 0
 
     def post_check_loop(self):
@@ -517,6 +527,7 @@ class PostHolder:
                     already_vote = True
                     print("ALREADY VOTED")
                     break
+        print("VOTES GOTTEN 2")
         if not already_vote:
 
             votes = 0
@@ -526,15 +537,13 @@ class PostHolder:
                     votes += 1
 
             # Make post memo, this sits idle on chain until curation rewards are paid out.
-            ratio = round(votes/(len(i[2]) + 2),3)
-            vote_size = round(self.make_vote(ratio,i[0]),2)
-            interpret.vote_post(i[0], i[1], int(i[4]),i[2], votes / (len(i[2]) + 2),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
+            ratio = round((votes)/(len(i[2]) + 2),3)
+            print("VOTE 3")
+            if len(i[2]) > 15:
+                vote_size = round(self.make_vote(ratio,i[0],i[5][0]),2)
+            else:
+                vote_size = 0
+            interpret.vote_post(i[0], i[1], int(i[4]),i[2], (votes) / (len(i[2]) + 2),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
 
-
-
-
-
-
-
-
+thing = Main(100, 1000000, "co-in", "active_key", "co-in-memo", ["wss://rpc.buildteam.io"], "posting_key", 0.5)
 # ["post-link", "author","submitor acc]

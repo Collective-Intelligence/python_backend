@@ -114,6 +114,8 @@ def vote_post(post_link, submission_author, submission_time,vote_list, ratio, ou
     json_thing["ratio"] = ratio
     json_thing["vote-list"] = vote_list
     json_thing["vote_size"] = vote_size
+    if len(vote_list) < 15:
+        json_thing["message"] = "less than 15 votes, cannot vote"
     #print(json_thing)
 
     return main.save_memo(json_thing,our_memo_account, our_sending_account, active_key,node=node)
