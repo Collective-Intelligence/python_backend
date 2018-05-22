@@ -226,12 +226,13 @@ class Main:
 
             try:
                 with self.locks["post-holder"]:
-                    post =self.post_holders[info["action"]["tag"]].get_random(info["steem-name"])
+                    post = self.post_holders[info["action"]["tag"]].get_random(info["steem-name"])
                 self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
 
 
 
-            except:
+            except Exception as e:
+                print(e)
                 self.return_json({"success": False, "error": 10, "idnum": info["idnum"]}, idnum)
 
 
@@ -399,7 +400,7 @@ class PostHolder:
                 return return_post
             except AttributeError:
                 self.set_random()
-                return self.get_random()
+                return self.get_random(steem_name)
 
     def add_vote(self, vote, post, is_get_random=False):
         print("ADDVOTE1")

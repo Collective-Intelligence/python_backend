@@ -311,7 +311,7 @@ class Session:
 
                     self.return_json({"success": False, "error": -20,"idnum":info["idnum"]})  # can only buy tokens
 
-            except:
+            except :
                 self.return_json({"success": False, "error":10,"idnum":info["idnum"]}) # function doesnt work
 
 
