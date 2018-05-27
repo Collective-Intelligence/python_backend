@@ -33,14 +33,13 @@ import threading
 
 class Main():
 
-    def __init__(self,node,active_key):
+    def __init__(self,node,active_key,port):
 
         self.sending_account = "co-in"
         self.memo_account = "co-in-memo"
         self.user_sessions = {}
         self.curation_sessions = {}
-        #{tag:{"TCP_IP":ip,"TPC_PORT":port,"BUFFER_SIZE":buffer_size}}
-        #uses ports from 37000-38000
+
 
         self.steem_node = node
         self.active_key = active_key
@@ -50,7 +49,7 @@ class Main():
         self.locks = {"user-sessions":threading.Lock(),"curation_sessions":threading.Lock(),"input-info":threading.Lock(),"return_list":threading.Lock()}
 
         self.TCP_IP = '127.0.0.1'
-        self.TCP_PORT = 5005
+        self.TCP_PORT = port
         print(self.TCP_PORT)
         self.BUFFER_SIZE = 1024
 
@@ -67,6 +66,7 @@ class Main():
 
 
         # {"Session":{"class":class,"new_input":[[user1/system1,input1],[user2/system2,input2]], "lock":lock}}
+
     def communication_loop(self):
         # waits for internal socket connections (from celery in the flask_app sections)
         # takes the json sent, and then makes a new thread to process it
@@ -141,11 +141,6 @@ class Main():
                 print(e)
                 pass
 
-
-
-
-
-
     def read_json(self,json_object,idnum):
         print(json_object)
         # takes the json and id num and does actions based on what it contains
@@ -180,17 +175,6 @@ class Main():
                     print(100)
 
                     self.return_json({"success": False, "error":2,"idnum":json_object["idnum"]},user_info) # Session does not exist
-
-
-
-
-
-
-
-
-
-
-
 
     def create_session(self,user_info):
         # Creates session once users key has been verified.
@@ -239,6 +223,7 @@ class Main():
         return True
 
         # verifies key
+
     def verify_key(self,name,key):
         s = Steem(keys=key)
 
@@ -249,7 +234,6 @@ class Main():
             print(9)
             print(e)
             return False
-
 
     def return_json(self,json,user_info):
         with self.locks["return_list"]:
@@ -271,8 +255,6 @@ class Session:
         self.token_prices = {"token-upvote-perm":0.5,"ad-token-perm":0.75}
         thread = threading.Thread(target=self.main_loop)
         thread.start()
-
-
 
     def main_loop(self):
         time_since_last_communication = 0
@@ -324,7 +306,6 @@ class Session:
         self.main.return_json(json,self.user_info)
         pass
 
-
     def make_purchase(self,token,amount):
         # This takes GP the user has and buys a Token from it.
         try:
@@ -349,11 +330,4 @@ class Session:
 
 
 
-
-main = Main("wss://steemd-int.steemit.com","active_key")
-user = {"steem-account":"anarchyhasnogods"}
-#main.create_session({"steem-account":"anarchyhasnogods"})
-#main.user_sessions["anarchyhasnogods"]["session"].make_purchase("ad-token-perm",2)
-
-
-print("end")
+thing = Main("wss://rpc.buildteam.io","active_key",5005)

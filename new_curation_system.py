@@ -12,12 +12,18 @@ from memo_saving import main
 import json
 
 class Main:
-    def __init__(self, max_time,max_votes, sending_account, key, memo_account,nodes,posting_key, vote_threshold):
+    def __init__(self):
+        print("STARTING CURATION SYSTEM")
+        info = json.loads(self.send_communication(json.dumps({"action":{"type":"get_curation_info"}}), 5001, '127.0.0.1', 1024))
+        info["info"] = json.loads(info["info"])
+        max_time,max_votes, sending_account, key,memo_account, nodes\
+            , posting_key, vote_threshold, port\
+            = info["info"][0],  info["info"][1], info["info"][2], info["info"][3], info["info"][4]\
+            , info["info"][5], info["info"][6], info["info"][7], info["info"][8]
+
         self.vote_threshold = vote_threshold # min vote ratio for a vote
-        self.average_post = interpret.get_vote_amount(86400)
+        self.average_post = interpret.get_vote_amount(86400,node=nodes[0])
         self.max_votes = max_votes
-        print("VOTE AMOUNT")
-        print(self.average_post)
         self.posting_key = posting_key
         self.user_actions = {}
 
@@ -38,19 +44,70 @@ class Main:
         self.TCP_IP = '127.0.0.1'
         self.BUFFER_SIZE = 1024
         self.info_out = []
-        self.TCP_PORT = 5006
+        self.TCP_PORT = port
 
 
         self.post_holders = {}
 
 
 
-        print("DONE")
         thread = threading.Thread(target=self.communication_loop)
         thread.start()
 
-    def user_action_loop(self):
-        pass
+    def send_communication(self, MESSAGE, TCP_PORT, TCP_IP, BUFFER_SIZE):
+        time_out = 300
+
+        return_object = False
+        print("PORT NUMBER", TCP_PORT)
+
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((TCP_IP, TCP_PORT))
+            s.send(MESSAGE.encode())
+            data = ""
+            while True:
+
+                new_data = s.recv(BUFFER_SIZE)
+                new_data = new_data.decode()
+                data += new_data
+                if not new_data: break
+                if not len(new_data) > 0: break
+                if not len(new_data) > BUFFER_SIZE: break
+            id = json.loads(data)["idnum"]
+            data = ""
+            times = 0
+            # waits until the task is done by the communication backend
+            while not return_object or return_object == "404":
+                data = ""
+                times += 1
+                if times > time_out:
+                    return False
+                time.sleep(1)
+                MESSAGE = json.dumps({"action": "return_json", "idnum": id})
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect((TCP_IP, TCP_PORT ))
+                s.send(MESSAGE.encode())
+                while True:
+                    new_data = s.recv(BUFFER_SIZE)
+                    new_data = new_data.decode()
+                    data += new_data
+                    if not new_data: break
+                    if not len(new_data) > 0: break
+                    if not len(new_data) > BUFFER_SIZE: break
+
+                if data != "":
+                    return_object = data
+
+
+        except Exception as e:
+            print("err 11")
+            print(e)
+
+            pass
+
+
+
+        return return_object
 
     def communication_loop(self):
         # waits for internal socket connections (from celery in the flask_app sections)
@@ -63,12 +120,13 @@ class Main:
             try:
                 num = 1
                 # creates re-usable socket and listens until connection is made.
-
+                print("STARTING CURATION")
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                print(TCP_PORT)
+                print("PORT FOR CURATION",TCP_PORT)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind((TCP_IP, TCP_PORT))
                 s.listen(0)
+                print("LISTING")
                 while True:
                     num += 1
                     conn, addr = s.accept()
@@ -109,10 +167,12 @@ class Main:
                                     conn.send(json.dumps({"idnum": id_num}).encode())
 
                             except Exception as e:
+                                print("err 4")
                                 print(e)
                                 conn.send(json.dumps({"success": False, "error": -1}).encode())
 
                         except Exception as e:
+                            print("err 3")
                             print(e)
                             pass
 
@@ -123,6 +183,7 @@ class Main:
 
 
             except Exception as e:
+                print("err 2")
                 print(e)
                 pass
 
@@ -152,7 +213,7 @@ class Main:
             return False
 
     def read_json(self,info,idnum):
-        print("READ JSON", info)
+        print("READ JSON CURATION", info)
         users_that_can_create = ["anarchyhasnogods","co-in"]
         info = json.loads(info)
         info["idnum"] = idnum
@@ -177,6 +238,7 @@ class Main:
 
 
             except Exception as e:
+                print("err 1")
                 print(e)
                 self.return_json({"success": False, "error": 1,"idnum":info["idnum"]},idnum)
         elif info["action"]["type"] == "create_session":
@@ -199,6 +261,7 @@ class Main:
                     self.post_holders[info["action"]["tag"]] = PostHolder(self)
                     self.return_json({"success": True,"action":info["action"]["type"], "idnum": info["idnum"]}, idnum)
             except Exception as e:
+
                 print(e)
                 print("here")
                 self.return_json({"success": False, "error": 20, "idnum": info["idnum"]}, idnum)
@@ -232,6 +295,7 @@ class Main:
 
 
             except Exception as e:
+                print("err 10")
                 print(e)
                 self.return_json({"success": False, "error": 10, "idnum": info["idnum"]}, idnum)
 
@@ -261,7 +325,6 @@ class Main:
 
             self.info_out.append([json, user_info,time.time()])
 
-
     def verify(self,name,key):
 
 
@@ -290,6 +353,7 @@ class Main:
         return True
 
         # verifies key
+
     def verify_key(self,name,key):
         s = Steem(keys=key)
 
@@ -505,6 +569,7 @@ class PostHolder:
 
 
             except Exception as e:
+                print("err 5")
                 print(e)
                 pass
         pass
@@ -546,5 +611,6 @@ class PostHolder:
                 vote_size = 0
             interpret.vote_post(i[0], i[1], int(i[4]),i[2], (votes) / (len(i[2]) + 2),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
 
-thing = Main(100, 1000000, "co-in", "active_key", "co-in-memo", ["wss://rpc.buildteam.io"], "posting_key", 0.5)
-# ["post-link", "author","submitor acc]
+
+
+thing = Main()
