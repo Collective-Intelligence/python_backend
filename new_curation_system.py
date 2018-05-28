@@ -6,7 +6,7 @@ import time
 import random
 import math
 import socket
-
+import sys
 from memo_saving import interpret
 from memo_saving import main
 import json
@@ -29,7 +29,7 @@ class Main:
 
 
 
-        self.locks = {"return_list":threading.Lock(), "post-holder":threading.Lock(), "user_actions":threading.Lock()}
+        self.locks = {"return_list":threading.Lock(), "post-holder":threading.Lock(), "user_actions":threading.Lock(), "last_communication":threading.Lock()}
         # [average post, time period]
         # for average vote calculation, uses average of 10 full 100 % votes(1000) and devides it by average (voted on) posts
         # Max time is seconds
@@ -48,13 +48,22 @@ class Main:
 
 
         self.post_holders = {}
-
+        self.last_communication = time.time()
 
 
         thread = threading.Thread(target=self.communication_loop)
         thread.start()
+        self.end_loop()
+    def end_loop(self):
+        while True:
+            time.sleep(60 * 5)
+            with self.locks["last_communication"]:
+                if time.time() - self.last_communication > 30 * 60:
+                    sys.exit()
 
     def send_communication(self, MESSAGE, TCP_PORT, TCP_IP, BUFFER_SIZE):
+        with self.locks["last_communication"]:
+            self.last_communication = time.time()
         time_out = 300
 
         return_object = False

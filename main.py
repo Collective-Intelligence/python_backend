@@ -38,6 +38,27 @@ class Main():
         thread = threading.Thread(target=self.communication_loop)
         thread.start()
 
+    def system_check(self):
+        while True:
+            open_ports = []
+            new_curation_list = []
+            time.sleep(60 * 10)
+            with self.locks["curation_list"]:
+                for i in self.curation_sessions:
+                    for ii in i["tags"]:
+                        if info["action"]["tag"] == ii:
+                             if not json.loads(
+                                self.send_communication(json.dumps(info), i["port"], self.TCP_IP, self.BUFFER_SIZE)):
+                                open_ports.append(i["port"])
+                             else:
+                                 new_curation_list.append(i)
+                self.curation_sessions = new_curation_list
+            while self.locks["open_ports"]:
+                for i in open_ports:
+                    self.port_list.append(i)
+
+
+
     def communication_loop(self):
         TCP_IP = self.TCP_IP
         TCP_PORT = self.TCP_PORT
