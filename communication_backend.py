@@ -61,6 +61,7 @@ class Main():
 
 
         thread = threading.Thread(target=self.communication_loop)
+        thread.daemon = True
         thread.start()
 
 
@@ -120,6 +121,7 @@ class Main():
 
                                 else:
                                     thread = threading.Thread(target=self.read_json, args=([data, id_num]))
+                                    thread.daemon = True
                                     thread.start()
                                     conn.send(json.dumps({"idnum":id_num}).encode())
 
@@ -254,6 +256,7 @@ class Session:
 
         self.token_prices = {"token-upvote-perm":0.5,"ad-token-perm":0.75}
         thread = threading.Thread(target=self.main_loop)
+        thread.daemon = True
         thread.start()
 
     def main_loop(self):

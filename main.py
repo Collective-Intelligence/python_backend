@@ -36,6 +36,7 @@ class Main():
             self.port_list.append(i + port_start)
 
         thread = threading.Thread(target=self.communication_loop)
+        thread.daemon = True
         thread.start()
 
     def system_check(self):
@@ -112,6 +113,7 @@ class Main():
 
                                 else:
                                     thread = threading.Thread(target=self.read_json, args=([data, id_num]))
+                                    thread.daemon = True
                                     thread.start()
                                     conn.send(json.dumps({"idnum": id_num}).encode())
 

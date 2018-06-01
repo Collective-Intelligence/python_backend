@@ -52,6 +52,7 @@ class Main:
 
 
         thread = threading.Thread(target=self.communication_loop)
+        thread.daemon = True
         thread.start()
         self.end_loop()
     def end_loop(self):
@@ -172,6 +173,7 @@ class Main:
 
                                 else:
                                     thread = threading.Thread(target=self.read_json, args=([data, id_num]))
+                                    thread.daemon = True
                                     thread.start()
                                     conn.send(json.dumps({"idnum": id_num}).encode())
 
@@ -406,6 +408,7 @@ class PostHolder:
         self.BUFFER_SIZE = main.BUFFER_SIZE
         print("ENDTHING")
         thread = threading.Thread(target=self.post_check_loop)
+        thread.daemon = True
         thread.start()
 
 
