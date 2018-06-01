@@ -226,7 +226,7 @@ class Main():
             print(e)
 
             return False
-        if not interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) is None:
+        if not interpret.get_account_info(name, self.active_key,self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
             if not self.verify_key(name,key):
                 return False

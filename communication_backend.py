@@ -209,7 +209,7 @@ class Main():
             print(e)
 
             return False
-        if not interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) is None:
+        if not interpret.get_account_info(name,self.active_key, self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
             if not self.verify_key(name,key):
                 return False
@@ -312,7 +312,7 @@ class Session:
     def make_purchase(self,token,amount):
         # This takes GP the user has and buys a Token from it.
         try:
-            account = interpret.get_account_info(self.user_info["steem-account"], self.main.sending_account, self.main.memo_account,self.steem_node)
+            account = interpret.get_account_info(self.user_info["steem-account"],self.main.active_key,self.main.sending_account, self.main.memo_account,self.steem_node)
             print(27)
             # Checks if the account has enough GP to buy the tokens, if it does update the account with the new amount
             if account[2]["gp"] > self.token_prices[token] * amount:

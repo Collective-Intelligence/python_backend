@@ -6,27 +6,16 @@ import json
 from steem import Steem
 
 
+keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-perm",0],["ad-token-temp",0]
+               ["token-post-review",0],["experience",0],["steem-owed",0],["vote",[]],["vote-link",[]]
+               ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["ratings",{"curation":0}]]
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
     keyword_dict = {}
     # creates account
 
-    if True:
-        keyword_dict["type"] = "account"
-
-        keyword_dict["gp"] = 0
-        keyword_dict["ad-token-perm"] = 0
-        keyword_dict["token-upvote-perm"] =  0
-
-        keyword_dict["token-upvote-temp"] =  0
-        keyword_dict["ad-token-temp"]= 0
-        keyword_dict["token-post-review"]= 0
-        keyword_dict["experience"]= 0
-        keyword_dict["steem-owed"]= 0
-        keyword_dict["vote"]= []
-        keyword_dict["vote-link"]= []
-        keyword_dict["steem-gp-ratio"] = 0.33 # amount of steem that is turned into GP automatically
-        keyword_dict["groups"] = [["CI",1]] # group, rank
-
+    global keywordlist
+    for i in keywordlist:
+        keyword_dict[i[0]] = i[1]
 
     keyword_dict["account"] = account_name
 
@@ -36,16 +25,33 @@ def start_account(account_name,active_key, our_memo_account="space-pictures", ou
     main.save_memo(keyword_dict, our_memo_account, our_sending_account, active_key)
 
 
+def update_info_version(account_info, active_key, our_account,our_memo_account,node):
+    changes = []
+    keys = account_info.keys()
+    for i in keywordlist:
+        if not i[0] in keys:
+
+            changes.append([i[0],i[1]])
+            account_info[i[0]] = i[1]
+    if changes != []:
+        update_account(account_info["account"],our_account,our_memo_account,changes,active_key,node)
+    return account_info
 
 
-def get_account_info(account,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node ="wss://steemd-int.steemit.com"):
+
+
+
+def get_account_info(account,active_key,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node ="wss://steemd-int.steemit.com"):
     # gets the useful account info for a specific account, goes through all accounts until it gets the correct account then returns info
     print("getting account info")
     return_info = main.retrieve([["account",account],["type","account"]], account=our_account, sent_to=our_memo_account,node=node)
     if return_info != []:
 
-        return_info[0][2] = json.loads(return_info[0][2])
+
+        return_info[0][2] = update_info_version(json.loads(return_info[0][2]),active_key,our_account,our_memo_account,node)
+
         return return_info[0]
+
     return None
 
 

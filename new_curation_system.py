@@ -348,7 +348,7 @@ class Main:
             print(e)
 
             return False
-        if not interpret.get_account_info(name, self.sending_account, self.memo_account,self.steem_node) is None:
+        if not interpret.get_account_info(name,self.main.active_key, self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
             if not self.verify_key(name,key):
                 return False
@@ -425,7 +425,7 @@ class PostHolder:
             print("ADDPOST1")
 
         # gets account info for reward calculation
-            account_info_post = interpret.get_account_info(perm_link[1],self.main.sending_account,self.main.memo_account,self.main.nodes[0])
+            account_info_post = interpret.get_account_info(perm_link[1],self.main.active_key,self.main.sending_account,self.main.memo_account,self.main.nodes[0])
 
             print("ADDPOST2")
             if account_info_post != None:
@@ -524,7 +524,7 @@ class PostHolder:
 
     def make_vote(self, ratio, post_link,account_name):
         print("HERE 1")
-        account_info_post = interpret.get_account_info(account_name, self.main.sending_account, self.main.memo_account,
+        account_info_post = interpret.get_account_info(account_name,self.main.active_key, self.main.sending_account, self.main.memo_account,
                                                        self.main.nodes[0])[2]
         # takes ratio and post link and calculates the vote on the post, and returns it for use in the post memo
         if ratio < self.vote_threshold:
