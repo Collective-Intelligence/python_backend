@@ -8,7 +8,7 @@ from steem import Steem
 
 keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-perm",0],["ad-token-temp",0]
                ["token-post-review",0],["experience",0],["steem-owed",0],["vote",[]],["vote-link",[]]
-               ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["rating_cuartion",0]]
+               ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["rating_cuartion",0],["adp_tok",10]]
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
     keyword_dict = {}
     # creates account
@@ -75,10 +75,7 @@ def update_account(account, our_sending_account, our_memo_account, changes, acti
         else:
             info_dict[i[0]] = i[1]
 
-    print("AT THING")
     thing = list_to_full_string(info_dict,our_memo_account,our_sending_account,active_key)
-    print("THING MADE")
-    print(our_memo_account, our_sending_account, active_key, node)
     return main.save_memo(thing, our_memo_account, our_sending_account, active_key,node=node)
 
 
@@ -89,15 +86,12 @@ def update_account(account, our_sending_account, our_memo_account, changes, acti
 def list_to_full_string(list_set,our_memo_account, our_sending_account, active_key):
     # turns objects into info that can be used as json
     # if its too long sends a static memo for votes
-    print("THIS999")
     dump_list = json.dumps(list_set)
     dump_list = json.dumps(dump_list)
     total_len = len(dump_list)
     print(total_len)
     if total_len > 2000:
-        print("TRY THIS")
         vote_list_post = main.save_memo({"account":list_set["account"],"type":"vote-link","vote":list_set["vote"]}, our_memo_account, our_sending_account, active_key)
-        print(" PAST THIS")
         list_set["vote"] = []
         list_set["vote-link"].append([vote_list_post, our_memo_account])
 
@@ -173,9 +167,7 @@ def vote_link_create(account_memo, our_memo_account, our_sending_account, active
     # if the memo is too large it makes a static memo that is saved on its account
     print("this_thing")
     if len(json.dumps(account_memo)) > 2000 or create_link_anyway:
-        #print(json.dumps(account_memo["vote"]))
-        #print(account_memo["vote"])
-        #print("this thing")
+
         index = main.save_memo(json.dumps(account_memo["vote"]), our_memo_account, our_sending_account, active_key, node=node)
         account_memo["vote"] = 0
         account_memo["vote-link"].append(index)
@@ -257,7 +249,6 @@ def pay_account(size,our_account,our_memo_account,node,active_key,info):
             s.transfer(info["account"],size, asset="STEEM", account=our_account, memo="payment of "+ str(size)+" Steem.")
             info["steem-owed"] -= size
             main.save_memo(info, our_memo_account, our_account, active_key, node=node)
-            print("HERE")
             break
         except Exception as e:
             print(e)
