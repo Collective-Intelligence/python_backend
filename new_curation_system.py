@@ -31,7 +31,7 @@ class Main:
 
         self.locks = {"return_list":threading.Lock(), "post-holder":threading.Lock(), "user_actions":threading.Lock(), "last_communication":threading.Lock()}
         # [average post, time period]
-        # for average vote calculation, uses average of 10 full 100 % votes(1000) and devides it by average (voted on) posts
+        # for average vote calculation, uses average of 10 full 1   00 % votes(1000) and devides it by average (voted on) posts
         # Max time is seconds
         self.max_time = max_time
         self.sending_account = sending_account
@@ -615,14 +615,40 @@ class PostHolder:
                     votes += 1
 
             # Make post memo, this sits idle on chain until curation rewards are paid out.
-            ratio = round((votes)/(len(i[2]) + 2),3)
+            ratio = self.get_ratio(votes)
+
             print("VOTE 3")
             if len(i[2]) > 15:
-                vote_size = round(self.make_vote(ratio,i[0],i[5][0]),2)
+                vote_size = round(self.make_vote(ratio[0]/(ratio[1]+3),i[0],i[5][0]),2)
             else:
                 vote_size = 0
-            interpret.vote_post(i[0], i[1], int(i[4]),i[2], (votes) / (len(i[2]) + 2),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
+            interpret.vote_post(i[0], i[1], int(i[4]),i[2], (ratio[0]) / (ratio[1] + 3),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
 
 
+    def get_ratio(self,vote_list):
+        vote_rating = [0,0]
+        change_rating = [0,0]
+        accounts = {}
+        if vote_list < 5:
+            return 0
+        for i in vote_list:
+            account_info = interpret.get_account_info(i[0],self.main.active_key, self.main.sending_account, self.main.memo_account,
+                                                       self.main.nodes[0])[2]
+            curation_rating = account_info["rating_curation"]
+            accounts[account_info["steem-name"]] = account_info
+            vote_rating[0] += (curation_rating ** 2) * i[1]
+            vote_rating[1] += curation_rating ** 2
+            for ii in account_info["groups"]:
+                if ii[0] == "CI":
+                    rating_change_val = ii[1]
+                change_rating[0] += (curation_rating **2 ) * i[1] * rating_change_val
+                change_rating[1] += (curation_rating ** 2) * rating_change_val
+        for i in vote_list:
+            for ii in account_info[i[0]]["groups"]:
+                if ii[0] == "CI" and ii[1] < 3:
+                    new_rating = account_info[i[0]]["rating_curation"] + (1/1000) * ((change_rating[0]/change_rating[1])
+                                                                                                 - self.ratio_num) * i[1]
 
+                    interpret.update_account(i[0],self.main.sending_account,self.main.memo_account,["rating_curation",new_rating],self.main.key,self.main.nodes[0])
+        return vote_rating
 thing = Main()

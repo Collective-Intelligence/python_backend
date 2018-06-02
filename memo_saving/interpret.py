@@ -8,7 +8,7 @@ from steem import Steem
 
 keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-perm",0],["ad-token-temp",0]
                ["token-post-review",0],["experience",0],["steem-owed",0],["vote",[]],["vote-link",[]]
-               ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["ratings",{"curation":0}]]
+               ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["rating_cuartion",0]]
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
     keyword_dict = {}
     # creates account
