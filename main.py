@@ -13,10 +13,12 @@ from multiprocessing import Process
 import socket
 import os
 import threading
+from steembase.account import PrivateKey
+
 # This is the main class for the backend. This is the one that manages all of the systems
 class Main():
     def __init__(self,max_ports,port_start,active_key,posting_key):
-        self.steem_node = "wss://rpc.buildteam.io"
+        self.steem_node = "wss://gtg.steem.house:8090"
         self.active_key = active_key
         self.posting_key = posting_key
         self.TCP_IP = '127.0.0.1'
@@ -37,8 +39,12 @@ class Main():
 
         thread = threading.Thread(target=self.communication_loop)
         thread.daemon = True
-        thread.start()
 
+        thread.start()
+        self.sleep_loop()
+    def sleep_loop(self):
+        while True: # will update later
+            time.sleep(1)
     def system_check(self):
         while True:
             open_ports = []
@@ -67,6 +73,7 @@ class Main():
         while True:
             try:
                 num = 1
+                print(num)
                 # creates re-usable socket and listens until connection is made.
 
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -98,10 +105,14 @@ class Main():
                                 #print(99)
                                 #print(data)
                                 if json.loads(data)["action"] == "return_json":
+
                                     with self.locks["return_list"]:
-                                        #print(100)
+
+
                                         for i in range(len(self.info_out)):
                                          #   print(101)
+                                            #print(json.loads(data)["idnum"], self.info_out[i])
+
                                             if self.info_out[i][0]["idnum"] == json.loads(data)["idnum"]:
                                                 sent = True
                                                 conn.send(json.dumps(self.info_out[i][0]).encode())
@@ -144,6 +155,11 @@ class Main():
         print("READ JSON", info)
         users_that_can_create = ["anarchyhasnogods","co-in"]
         info = json.loads(info)
+        print(info)
+        try:
+            self.verify(info["steem-name"],info["key"])
+        except:
+            pass
         info["idnum"] = idnum
 
         if info["action"]["type"] == "get_curation_info":
@@ -156,19 +172,29 @@ class Main():
                     self.return_json(
                         {"success": False, "idnum": info["idnum"], "info": []})
         elif info["forward"] == "true":
-            if info["system"] == "curation" and self.verify(info["steem-name"],info["key"]) and info["steem-name"] in users_that_can_create:
+            print("FORWARD STARTING")
+            if info["system"] == "curation" and self.verify(info["steem-name"],info["key"]):
                 with self.locks["curation_list"]:
+                    print("LOCKING CURATION LIST")
+                    print(self.curation_sessions)
                     for i in self.curation_sessions:
                         for ii in i["tags"]:
                             if info["action"]["tag"] == ii:
-                                message = json.loads(self.send_communication(json.dumps(info),i["port"], self.TCP_IP,self.BUFFER_SIZE))
-                                message["idnum"] = idnum
-                                self.return_json(message)
+                                message = self.send_communication(json.dumps(info),i["port"], self.TCP_IP,self.BUFFER_SIZE)
+                                if message:
+
+                                    message = json.loads(message)
+                                    message["idnum"] = idnum
+
+                                    self.return_json(message)
+                                else:
+                                    self.read_json({"success":False, "error":999,"idnum":idnum})
             if info["system"] == "user":
-                pass
+                print("SYSTeM IS USER")
         else:
 
             if info["action"]["type"] == "create_session_curation":
+                print("")
                 with self.locks["open_ports"]:
                     port = self.port_list.pop()
                 with self.locks["curation_info"]:
@@ -177,7 +203,7 @@ class Main():
                         p = Process(target=self.create_curation, args=())
                         p.start()
                         #self.create_curation_system(100, 1000000, "co-in", self.active_key, "co-in-memo", ["wss://rpc.buildteam.io"], self.posting_key, 0.5,port)
-                        self.curation_information_hold.append(json.dumps([100, 1000000, "co-in", self.active_key, "co-in-memo", ["wss://rpc.buildteam.io"], self.posting_key, 0.5,port]))
+                        self.curation_information_hold.append(json.dumps([100, 1000000, "co-in", self.active_key, "co-in-memo", [self.steem_node], self.posting_key, 0.5,port]))
                         time.sleep(30)
 
 
@@ -206,6 +232,7 @@ class Main():
                 tags = []
                 with self.locks["curation_list"]:
                     for i in self.curation_sessions:
+                        print(i)
                         for ii in self.curation_sessions[i]["tags"]:
                             tags.append(ii)
 
@@ -219,10 +246,22 @@ class Main():
 
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
+
+
         try:
-            s = Steem(keys=key)
+            s = Steem(node=self.steem_node)
+            print("X",key )
+            pubkey = PrivateKey(key).pubkey
+            print("x.5", name)
+            account = s.get_account(name)
+            print("Y")
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
+
         except Exception as e:
-            print("99")
+            print("99, here2")
             print(e)
 
             return False
@@ -247,7 +286,14 @@ class Main():
         s = Steem(keys=key)
 
         try:
-            s.follow(self.sending_account, what=['blog'], account=name)
+            s = Steem(node=self.steem_node)
+            pubkey = PrivateKey(key).pubkey
+            account = s.get_account(name)
+
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
             return True
         except Exception as e:
             print(9)
@@ -261,7 +307,7 @@ class Main():
         print("PORT NUMBER", TCP_PORT)
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((TCP_IP, TCP_PORT ))
+            s.connect((TCP_IP, TCP_PORT))
             s.send(MESSAGE.encode())
             data = ""
             while True:
@@ -342,5 +388,5 @@ class Main():
         # looks at all users logged in
         pass
 
-
-thing = Main(1000,6000,"active_key","posting_key")
+print("HERE")
+thing = Main(1000,6000,"","")

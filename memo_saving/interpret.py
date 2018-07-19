@@ -6,8 +6,8 @@ import json
 from steem import Steem
 
 
-keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-perm",0],["ad-token-temp",0]
-               ["token-post-review",0],["experience",0],["steem-owed",0],["vote",[]],["vote-link",[]]
+keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-perm",0],["ad-token-temp",0],
+               ["token-post-review",0],["experience",0],["steem-owed",0],["vote",[]],["vote-link",[]],
                ["steem-gp-ratio",0.33],["groups",[["CI",1]]],["rating_cuartion",0],["adp_tok",10]]
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
     keyword_dict = {}
@@ -34,7 +34,7 @@ def update_info_version(account_info, active_key, our_account,our_memo_account,n
             changes.append([i[0],i[1]])
             account_info[i[0]] = i[1]
     if changes != []:
-        update_account(account_info["account"],our_account,our_memo_account,changes,active_key,node)
+        update_account(account_info["account"],our_account,our_memo_account,changes,active_key,node, account_info)
     return account_info
 
 
@@ -43,7 +43,7 @@ def update_info_version(account_info, active_key, our_account,our_memo_account,n
 
 def get_account_info(account,active_key,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node ="wss://steemd-int.steemit.com"):
     # gets the useful account info for a specific account, goes through all accounts until it gets the correct account then returns info
-    print("getting account info")
+    #print("getting account info")
     return_info = main.retrieve([["account",account],["type","account"]], account=our_account, sent_to=our_memo_account,node=node)
     if return_info != []:
 
@@ -57,13 +57,23 @@ def get_account_info(account,active_key,our_account = "anarchyhasnogods", our_me
 
 
 
-def update_account(account, our_sending_account, our_memo_account, changes, active_key,node):
+def update_account(account, our_sending_account, our_memo_account, changes, active_key,node, account_info = []):
     # Changes is composed of a list of changes
-    #Each seperate change is [keyword,new_information]
-    info = get_account_info(account,our_sending_account, our_memo_account)
-    #print("info",info)
 
-    info_dict = info[2]
+    #Each seperate change is [keyword,new_information]
+    print("UPDATING ACC")
+    if account_info == []:
+        info = get_account_info(account,active_key,our_sending_account, our_memo_account,node)
+        if info == None:
+            return False
+        info_dict = info[2]
+    else:
+        info_dict = account_info
+
+
+    #print("info",info)
+    #print(info, account, our_sending_account, our_memo_account)
+
     #print("THISS")
     for i in changes:
         #print(i)
@@ -89,7 +99,7 @@ def list_to_full_string(list_set,our_memo_account, our_sending_account, active_k
     dump_list = json.dumps(list_set)
     dump_list = json.dumps(dump_list)
     total_len = len(dump_list)
-    print(total_len)
+    #print(total_len)
     if total_len > 2000:
         vote_list_post = main.save_memo({"account":list_set["account"],"type":"vote-link","vote":list_set["vote"]}, our_memo_account, our_sending_account, active_key)
         list_set["vote"] = []
@@ -114,14 +124,14 @@ def vote_post(post_link, submission_author, submission_time,vote_list, ratio, ou
     json_thing["ratio"] = ratio
     json_thing["vote-list"] = vote_list
     json_thing["vote_size"] = vote_size
-    if len(vote_list) < 15:
-        json_thing["message"] = "less than 15 votes, cannot vote"
+    if len(vote_list) < 2:
+        json_thing["message"] = "less than 2 votes, cannot vote"
     #print(json_thing)
 
     return main.save_memo(json_thing,our_memo_account, our_sending_account, active_key,node=node)
 
 
-def get_account_list(sending_account,memo_account_list, node,days = 31):
+def get_account_list(sending_account,memo_account_list, node,days = 365):
     block = days * 24 * 60 * 20
     # checks up to 7 days ago by default
     memo_list = []
@@ -211,9 +221,9 @@ def get_vote_amount(time_period,our_account = "anarchyhasnogods", our_memo_accou
         average_ratio = average_ratio[0]/average_ratio[1]
     else:
         return [vote_power_in_period,1]
-    print("RETURN INFO")
-    print("RETURN INFO LENGTH: ", average_ratio, len(return_info))
-    print(vote_power_in_period)
+    #print("RETURN INFO")
+    #print("RETURN INFO LENGTH: ", average_ratio, len(return_info))
+    #print(vote_power_in_period)
     if len(return_info) == 0:
         return [vote_power_in_period,1]
 

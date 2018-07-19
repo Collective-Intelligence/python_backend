@@ -9,12 +9,17 @@ import socket
 import sys
 from memo_saving import interpret
 from memo_saving import main
+from steembase.account import PrivateKey
+
 import json
 
 class Main:
     def __init__(self):
         print("STARTING CURATION SYSTEM")
-        info = json.loads(self.send_communication(json.dumps({"action":{"type":"get_curation_info"}}), 5001, '127.0.0.1', 1024))
+        time.sleep(3)
+        info = self.send_communication(json.dumps({"action":{"type":"get_curation_info"}}), 5001, '127.0.0.1', 1024)
+        print(info)
+        info = json.loads(info)
         info["info"] = json.loads(info["info"])
         max_time,max_votes, sending_account, key,memo_account, nodes\
             , posting_key, vote_threshold, port\
@@ -36,6 +41,7 @@ class Main:
         self.max_time = max_time
         self.sending_account = sending_account
         self.key = key
+        self.active_key = key
         self.memo_account = memo_account
         self.votes_finished = False
         self.nodes = nodes
@@ -60,11 +66,12 @@ class Main:
             time.sleep(60 * 5)
             with self.locks["last_communication"]:
                 if time.time() - self.last_communication > 30 * 60:
-                    sys.exit()
-
+                    pass
+                    #sys.exit()
+                    # dynamic forms are not done yet
     def send_communication(self, MESSAGE, TCP_PORT, TCP_IP, BUFFER_SIZE):
-        with self.locks["last_communication"]:
-            self.last_communication = time.time()
+        #with self.locks["last_communication"]:
+         #   self.last_communication = time.time()
         time_out = 300
 
         return_object = False
@@ -232,14 +239,15 @@ class Main:
         if info["action"]["type"] == "add_post":
             try:
                 if self.verify_key(info["steem-name"],info["key"]):
+                    print("ACCOUNT VERIFIED")
                     if self.check_account_action(info):
 
 
 
                         with self.locks["post-holder"]:
-
+                            print("POST HOLDER LOCKED")
                             if self.post_holders[info["action"]["tag"]].add_post(info["action"]["post-link"],info["steem-name"]):
-
+                                print("POST HOLDERS ADDED")
 
                                 self.return_json({"success": True, "idnum": info["idnum"]}, idnum)
                             else:
@@ -264,7 +272,6 @@ class Main:
                 if not(info["steem-name"] in users_that_can_create and self.verify_key(info["steem-name"],info["key"])):
 
                     self.return_json({"success": False, "error": -20,"idnum":info["idnum"]},idnum)
-                    print("HERE")
 
                 print(0)
                 with self.locks["post-holder"]:
@@ -304,8 +311,13 @@ class Main:
 
             try:
                 with self.locks["post-holder"]:
+
                     post = self.post_holders[info["action"]["tag"]].get_random(info["steem-name"])
-                self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
+                    if post:
+                        self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
+                    else:
+                        self.return_json({"success": False, "error": 100, "idnum": info["idnum"]}, idnum)
+
 
 
 
@@ -340,21 +352,32 @@ class Main:
 
             self.info_out.append([json, user_info,time.time()])
 
-    def verify(self,name,key):
-
+    def verify(self, name, key):
 
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
+
+
         try:
-            s = Steem(keys=key)
+            s = Steem(self.nodes[0])
+            pubkey = PrivateKey(key).pubkey
+            account = s.get_account(name)
+
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
+
         except Exception as e:
+            print("here1")
             print("99")
             print(e)
 
             return False
-        if not interpret.get_account_info(name,self.main.active_key, self.sending_account, self.memo_account,self.steem_node) is None:
+        if not interpret.get_account_info(name, self.active_key, self.sending_account, self.memo_account,
+                                          self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
-            if not self.verify_key(name,key):
+            if not self.verify_key(name, key):
                 return False
             return True
 
@@ -362,18 +385,24 @@ class Main:
         else:
             # checks if account exists on steem
 
-            if not self.verify_key(name,key):
+            if not self.verify_key(name, key):
                 return False
-            interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
+            interpret.start_account(name, self.active_key, self.memo_account, self.sending_account, self.steem_node)
         return True
 
         # verifies key
 
-    def verify_key(self,name,key):
+    def verify_key(self, name, key):
         s = Steem(keys=key)
 
         try:
-            s.follow(self.sending_account, what=['blog'], account=name)
+            pubkey = PrivateKey(key).pubkey
+            account = s.get_account(name)
+
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
             return True
         except Exception as e:
             print(9)
@@ -418,12 +447,16 @@ class PostHolder:
 
 
     def add_post(self, post_link, submission_author):
+        print("START ADD POST")
         with self.lock:
             submission_acc = interpret.get_account_info(submission_author,self.key,self.sending_account,self.memo_account,self.nodes[0])
             if submission_acc[2]["adp_tok"] >0:
-                interpret.update_account(submission_author,self.sending_account,self.memo_account,["adp_tok", submission_acc[2]["adp_tok"] - 1], self.nodes[0])
+                print("UPDATE 2nd")
+                interpret.update_account(submission_author,self.sending_account,self.memo_account,[["adp_tok", submission_acc[2]["adp_tok"] - 1]], self.key,self.nodes[0])
             else:
                 return False
+            print("update 3rd")
+
         #https://steemit.com/politics/@anarchyhasnogods/a-communist-definition-of-property
         # example post link
             new_link = post_link.split("@")
@@ -433,6 +466,7 @@ class PostHolder:
 
         # gets account info for reward calculation
             account_info_post = interpret.get_account_info(perm_link[1],self.main.active_key,self.main.sending_account,self.main.memo_account,self.main.nodes[0])
+            print("ACCOUNT INFO POST")
 
             if account_info_post != None:
                 account_info_post = account_info_post[2]
@@ -445,8 +479,10 @@ class PostHolder:
             print(self.post_list)
             self.set_random(already_locked=True)
         return True
+
+
     def set_random(self, already_locked = False):
-        if not already_locked:
+        if already_locked:
         # takes list of all posts produced earlier and shuffles them visibility is based on amount of post in list
         # the amount in the list is based on the number assigned earlier
             self.random_posts = []
@@ -463,6 +499,8 @@ class PostHolder:
                 random.shuffle(self.random_posts)
     def get_random(self,steem_name):
         with self.lock:
+            if len(self.post_list) == 0:
+                return False
         # finds the next post in the random order and removes it
         # when it runs out it just creates the list again
         # this forces the posts to be seen roughly the same amount of times as their chance
@@ -485,6 +523,7 @@ class PostHolder:
                 return self.get_random(steem_name)
 
     def add_vote(self, vote, post, is_get_random=False):
+
         if is_get_random:
             for i in self.post_list:
                 print(i[0], post[0])
@@ -553,13 +592,13 @@ class PostHolder:
             try:
                 time.sleep(10)
                 with self.lock:
-                    print(self.post_list)
+                    #print(self.post_list)
                     new_post_list = []
                     for i in self.post_list:
                         print(i)
                         print(time.time() - i[4])
                         if time.time() - i[4] > 60 * 3:
-
+                            print("FINISHING POST")
                             self.finish_post(i)
                         else:
                             new_post_list.append(i)
@@ -576,6 +615,7 @@ class PostHolder:
         i = post
         already_vote = False
         for ii in self.nodes:
+            print("NODES")
 
             s = Steem(node=ii)
 
@@ -588,6 +628,7 @@ class PostHolder:
                 if iii["voter"] == self.sending_account:
                     already_vote = True
                     break
+        print("NOT ALREADY VOTE", already_vote)
         if not already_vote:
 
             votes = 0
@@ -598,11 +639,13 @@ class PostHolder:
 
             # Make post memo, this sits idle on chain until curation rewards are paid out.
             ratio = self.get_ratio(votes)
-
-            if len(i[2]) > 15:
+            print("VOTE SIZE")
+            print(ratio, i)
+            if len(i[2]) > 1:
                 vote_size = round(self.make_vote(ratio[0]/(ratio[1]+3),i[0],i[5][0]),2)
             else:
                 vote_size = 0
+            print("VOTE POST ")
             interpret.vote_post(i[0], i[1], int(i[4]),i[2], (ratio[0]) / (ratio[1] + 3),  self.memo_account, self.sending_account, self.key,random.choice(self.nodes), vote_size)
 
 
@@ -610,8 +653,8 @@ class PostHolder:
         vote_rating = [0,0]
         change_rating = [0,0]
         accounts = {}
-        if vote_list < 5:
-            return 0
+        if vote_list < 2:
+            return [0,0]
         for i in vote_list:
             account_info = interpret.get_account_info(i[0],self.main.active_key, self.main.sending_account, self.main.memo_account,
                                                        self.main.nodes[0])[2]
@@ -630,6 +673,6 @@ class PostHolder:
                     new_rating = account_info[i[0]]["rating_curation"] + (1/1000) * ((change_rating[0]/change_rating[1])
                                                                                                  - self.ratio_num) * i[1]
 
-                    interpret.update_account(i[0],self.main.sending_account,self.main.memo_account,["rating_curation",new_rating],self.main.key,self.main.nodes)
+                    interpret.update_account(i[0],self.main.sending_account,self.main.memo_account,["rating_curation",new_rating],self.main.key,self.main.nodes[0])
         return vote_rating
 thing = Main()

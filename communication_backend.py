@@ -1,3 +1,4 @@
+from steembase.account import PrivateKey
 from websocket import create_connection
 from steem import Steem
 import steem
@@ -21,6 +22,8 @@ from smtplib import SMTP as SMTP
 import random
 from multiprocessing import Process
 import threading
+from steembase.account import PrivateKey
+
 
 # Will spawn threads for I/O with user
 # Will use processes for blockchain related tasks
@@ -188,30 +191,31 @@ class Main():
 
         print(self.user_sessions)
 
-    def verify(self,name,key):
+    def verify(self, name, key):
 
-        # Verifies that the user exists, and does not already have a session
-
-        # This checks if the session exists, if it does not it continues
-        with self.locks["user-sessions"]:
-            try:
-                self.user_sessions[name]
-                return False
-            except Exception as e:
-                print(e)
-                pass
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
+
+
         try:
-            s = Steem(keys=key)
+            s = Steem()
+            pubkey = PrivateKey(key).pubkey
+            account = s.get_account(name)
+
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
+
         except Exception as e:
             print("99")
             print(e)
 
             return False
-        if not interpret.get_account_info(name,self.active_key, self.sending_account, self.memo_account,self.steem_node) is None:
+        if not interpret.get_account_info(name, self.active_key, self.sending_account, self.memo_account,
+                                          self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
-            if not self.verify_key(name,key):
+            if not self.verify_key(name, key):
                 return False
             return True
 
@@ -219,18 +223,25 @@ class Main():
         else:
             # checks if account exists on steem
 
-            if not self.verify_key(name,key):
+            if not self.verify_key(name, key):
                 return False
-            interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
+            interpret.start_account(name, self.active_key, self.memo_account, self.sending_account, self.steem_node)
         return True
 
         # verifies key
 
-    def verify_key(self,name,key):
+    def verify_key(self, name, key):
         s = Steem(keys=key)
 
         try:
-            s.follow(self.sending_account, what=['blog'], account=name)
+
+            pubkey = PrivateKey(key).pubkey
+            account = s.get_account(name)
+
+            pubkey2 = account['posting']['key_auths'][0][0]
+
+            if str(pubkey) != str(pubkey2):
+                return False
             return True
         except Exception as e:
             print(9)
@@ -333,4 +344,4 @@ class Session:
 
 
 
-thing = Main("wss://rpc.buildteam.io","active_key",5005)
+thing = Main("wss://gtg.steem.house:8090","active_key",5005)
