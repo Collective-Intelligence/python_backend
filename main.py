@@ -18,7 +18,7 @@ from steembase.account import PrivateKey
 # This is the main class for the backend. This is the one that manages all of the systems
 class Main():
     def __init__(self,max_ports,port_start,active_key,posting_key):
-        self.steem_node = "wss://gtg.steem.house:8090"
+        self.steem_node =  "wss://steemd.minnowsupportproject.org"#"wss://rpc.buildteam.io"#"wss://gtg.steem.house:8090"
         self.active_key = active_key
         self.posting_key = posting_key
         self.TCP_IP = '127.0.0.1'
@@ -171,30 +171,50 @@ class Main():
                 else:
                     self.return_json(
                         {"success": False, "idnum": info["idnum"], "info": []})
+
         elif info["forward"] == "true":
             print("FORWARD STARTING")
             if info["system"] == "curation" and self.verify(info["steem-name"],info["key"]):
+                print("locking curation list")
+                port = False
                 with self.locks["curation_list"]:
                     print("LOCKING CURATION LIST")
                     print(self.curation_sessions)
                     for i in self.curation_sessions:
                         for ii in i["tags"]:
+
                             if info["action"]["tag"] == ii:
-                                message = self.send_communication(json.dumps(info),i["port"], self.TCP_IP,self.BUFFER_SIZE)
-                                if message:
 
-                                    message = json.loads(message)
-                                    message["idnum"] = idnum
+                                port = i["port"]
+                if port:
+                    message = self.send_communication(json.dumps(info),port, self.TCP_IP,self.BUFFER_SIZE)
+                    if message:
 
-                                    self.return_json(message)
-                                else:
-                                    self.read_json({"success":False, "error":999,"idnum":idnum})
+                        message = json.loads(message)
+                        message["idnum"] = idnum
+
+                        self.return_json(message)
+                        return
+                    else:
+
+                        self.return_json({"success":False, "error":999,"idnum":idnum})
+                        return
+                self.return_json({"success": False, "error": 1036, "idnum": idnum})
+
+
+            else:
+                self.return_json({"success": False, "error": 1002, "idnum": idnum})
+                return
             if info["system"] == "user":
                 print("SYSTeM IS USER")
         else:
 
             if info["action"]["type"] == "create_session_curation":
-                print("")
+                if not self.verify(info["steem-name"], info["key"]):
+                    self.return_json({"success": False, "error": 1001, "idnum": idnum})
+                    return
+
+                print("A")
                 with self.locks["open_ports"]:
                     port = self.port_list.pop()
                 with self.locks["curation_info"]:
@@ -204,7 +224,7 @@ class Main():
                         p.start()
                         #self.create_curation_system(100, 1000000, "co-in", self.active_key, "co-in-memo", ["wss://rpc.buildteam.io"], self.posting_key, 0.5,port)
                         self.curation_information_hold.append(json.dumps([100, 1000000, "co-in", self.active_key, "co-in-memo", [self.steem_node], self.posting_key, 0.5,port]))
-                        time.sleep(30)
+                        time.sleep(15)
 
 
                         worked = True
@@ -226,17 +246,41 @@ class Main():
                 if worked:
                     with self.locks["curation_list"]:
                         self.curation_sessions.append({"port":port,"tags":[info["action"]["tag"]],"held_posts":0})
+                        print("CURATION SESSIONS", self.curation_sessions)
             elif info["action"]["type"] == "create_user_system":
-                pass
+                with self.locks["open_ports"]:
+                    port = self.port_list.pop()
+                with self.locks["user_session_list"]:
+
+                    pass
+
+
+
+
             elif info["action"]["type"] == "session":
                 tags = []
                 with self.locks["curation_list"]:
                     for i in self.curation_sessions:
                         print(i)
-                        for ii in self.curation_sessions[i]["tags"]:
+                        for ii in self.curation_sessions[i["tags"][0]]:
                             tags.append(ii)
 
                 self.return_json({"success": True, "idnum": info["idnum"],"tag_list":tags})
+
+            elif info["action"]["type"] == "buy_token":
+                if self.verify(info["steem-name"], info["key"]):
+                    if self.buy_token(info["steem-name"],info["action"]["token"],info["action"]["amount"]):
+
+                        self.return_json({"success": True,  "idnum": info["idnum"]})
+                    else:
+                        self.return_json({"success": False, "error": 10992, "idnum": info["idnum"]})
+
+                else:
+                    self.return_json({"success": False, "error": 10991, "idnum": info["idnum"]})
+
+
+            #elif:
+
     def create_curation(self):
         os.system("python3 new_curation_system.py")
 
@@ -246,49 +290,40 @@ class Main():
 
         # Checks if the account exists, if the account does not exist in our system it checks if it really does exist
         # if the account does not exist on steem, ends, if it does exist it creates an account in our platform
-
+        num = 0
 
         try:
-            s = Steem(node=self.steem_node)
-            print("X",key )
-            pubkey = PrivateKey(key).pubkey
-            print("x.5", name)
-            account = s.get_account(name)
-            print("Y")
-            pubkey2 = account['posting']['key_auths'][0][0]
-
-            if str(pubkey) != str(pubkey2):
-                return False
-
-        except Exception as e:
-            print("99, here2")
-            print(e)
-
-            return False
-        if not interpret.get_account_info(name, self.active_key,self.sending_account, self.memo_account,self.steem_node) is None:
+            print("Z3")
+            if not interpret.get_account_info(name, self.active_key,self.sending_account, self.memo_account,self.steem_node) is None:
             # account does exist on our platform. Next checks if the key for the account is correct
-            if not self.verify_key(name,key):
-                return False
-            return True
+                if not self.verify_key(name,key):
+                    return False
 
 
-        else:
+            else:
+                print("z4")
             # checks if account exists on steem
 
-            if not self.verify_key(name,key):
-                return False
-            interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
-        return True
+                if not self.verify_key(name,key):
+                    return False
+                print("VERIFY DONE")
+                interpret.start_account(name,self.active_key,self.memo_account,self.sending_account,self.steem_node)
+            return True
+        except:
+            return False
 
-        # verifies key
+
+
 
     def verify_key(self,name,key):
-        s = Steem(keys=key)
+        print("VERIFY")
+        #s = Steem(keys=key)
 
         try:
             s = Steem(node=self.steem_node)
             pubkey = PrivateKey(key).pubkey
             account = s.get_account(name)
+            print(account)
 
             pubkey2 = account['posting']['key_auths'][0][0]
 
@@ -388,5 +423,30 @@ class Main():
         # looks at all users logged in
         pass
 
+    def buy_token(self,account,token,amount):
+
+        self.token_prices = {"token-upvote-perm":0.5,"ad-token-perm":0.75, "adp_tok":0.05}
+
+        try:
+            account = interpret.get_account_info(account,self.active_key,self.sending_account, self.memo_account,self.steem_node)
+            print(27)
+            # Checks if the account has enough GP to buy the tokens, if it does update the account with the new amount
+            if account[2]["gp"] > self.token_prices[token] * amount:
+                print(28)
+                interpret.update_account(account,self.sending_account,self.memo_account,
+                                         [["gp", account[2]["gp"] - self.token_prices[token] * amount], [token, account[2][token] + amount]],self.active_key,self.steem_node)
+
+
+            else:
+                print(29)
+                return False
+            #elif account[2]["gp"] + account[2]["steem-owed"] > self.token_prices[token] * amount:
+             #   interpret.update_account(self.user_info["steem-account"])
+            print(account)
+            return account
+        except Exception as e:
+            print(e)
+            return False
+
 print("HERE")
-thing = Main(1000,6000,"","")
+thing = Main(1000,6000,"active_key","posting_key")

@@ -12,17 +12,19 @@ keywordlist = [["type","account"],["gp",0],["ad-token-perm",0],["token-upvote-pe
 def start_account(account_name,active_key, our_memo_account="space-pictures", our_sending_account="anarchyhasnogods", node="wss://steemd-int.steemit.com"):
     keyword_dict = {}
     # creates account
+    print("HERE")
 
     global keywordlist
     for i in keywordlist:
+        print("HERE2")
         keyword_dict[i[0]] = i[1]
-
+    print("HERE3")
     keyword_dict["account"] = account_name
 
     #info = list_to_full_string(real_list)
     #print("ddd", our_sending_account, our_memo_account)
-
-    main.save_memo(keyword_dict, our_memo_account, our_sending_account, active_key)
+    print("HERE4")
+    main.save_memo(keyword_dict, our_memo_account, our_sending_account, active_key,node=node)
 
 
 def update_info_version(account_info, active_key, our_account,our_memo_account,node):
@@ -44,6 +46,8 @@ def update_info_version(account_info, active_key, our_account,our_memo_account,n
 def get_account_info(account,active_key,our_account = "anarchyhasnogods", our_memo_account = "space-pictures",node ="wss://steemd-int.steemit.com"):
     # gets the useful account info for a specific account, goes through all accounts until it gets the correct account then returns info
     #print("getting account info")
+    print("XX6")
+    print(account,our_account,our_memo_account)
     return_info = main.retrieve([["account",account],["type","account"]], account=our_account, sent_to=our_memo_account,node=node)
     if return_info != []:
 
@@ -139,6 +143,7 @@ def get_account_list(sending_account,memo_account_list, node,days = 365):
     accounts_in_list = {"accounts": []}
 
     for i in memo_account_list:
+        print("XX7")
         temp_list.append(main.retrieve([["type", "account"]], sending_account, i, not_all_accounts = False, minblock=block,node=node))
 
         for ii in temp_list[0]:
@@ -161,7 +166,7 @@ def get_all_accounts(sending_account,memo_account, node,days = 31):
     block = days * 24 * 60 * 20
 
 
-
+    print("XX1")
     return_info = main.retrieve([["type", "account"]], sending_account, memo_account, not_all_accounts = False, minblock=block,node=node)
     account_list = []
     return_list = []
@@ -185,13 +190,14 @@ def vote_link_create(account_memo, our_memo_account, our_sending_account, active
 
 
 def vote_link_find(position,our_memo_account,our_sending_account,node):
+    print("XX2")
     return_info = main.retrieve(position=position,account=our_sending_account,sent_to = our_memo_account,node=node)
 
     return return_info
 
 
 def get_vote_list(memo_account, sending_account, post_link, node):
-
+    print("XX3")
     return_info = main.retrieve(keyword=[["vote-link",post_link]],account=sending_account, sent_to = memo_account, node=node)
 
 
@@ -203,6 +209,7 @@ def get_vote_amount(time_period,our_account = "anarchyhasnogods", our_memo_accou
     # gets average vote size by our account on posts over the time period, using the post memos sent
 
     block = time_period / 3
+    print("XX4")
     return_info = main.retrieve([["type","post"]], account=our_account, sent_to=our_memo_account,node=node,minblock = block,not_all_accounts = False)
     vote_power_in_period = (1000 / (24 * 60 * 60)) * time_period
     average_ratio = [0,0]
@@ -232,6 +239,7 @@ def get_vote_amount(time_period,our_account = "anarchyhasnogods", our_memo_accou
 
 def get_all_curation_rewards(time_period,our_account,our_memo_account,node):
     block = time_period / 3
+    print("XX5")
     return_info = main.retrieve(account=our_account, sent_to=our_memo_account, node=node,
                                 minblock=block, not_all_accounts=False,type_thing="curation_reward")
     return return_info
@@ -239,6 +247,7 @@ def get_all_curation_rewards(time_period,our_account,our_memo_account,node):
 
 def get_all_votes(time_period,our_account,our_memo_account,node):
     block = time_period / 3
+    print("XX5")
     return_info = main.retrieve([["type","post"]],account=our_account, sent_to=our_memo_account, node=node,
                                 minblock=block, not_all_accounts=False)
 
@@ -263,4 +272,19 @@ def pay_account(size,our_account,our_memo_account,node,active_key,info):
         except Exception as e:
             print(e)
             pass
+
+
+
+
+
+def start_gem_holder():
+    pass
+
+def read_gems():
+    pass
+
+def update_gem_holder():
+    pass
+
+
 

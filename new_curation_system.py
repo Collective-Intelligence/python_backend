@@ -15,6 +15,7 @@ import json
 
 class Main:
     def __init__(self):
+
         print("STARTING CURATION SYSTEM")
         time.sleep(3)
         info = self.send_communication(json.dumps({"action":{"type":"get_curation_info"}}), 5001, '127.0.0.1', 1024)
@@ -27,7 +28,18 @@ class Main:
             , info["info"][5], info["info"][6], info["info"][7], info["info"][8]
 
         self.vote_threshold = vote_threshold # min vote ratio for a vote
-        self.average_post = interpret.get_vote_amount(86400,node=nodes[0])
+        tries = 5
+        while True:
+            try:
+                self.average_post = interpret.get_vote_amount(86400,sending_account,memo_account,node=nodes[0])
+                break
+            except Exception as e:
+                print(e)
+                tries += 1
+            if tries > 5:
+                print("exiting")
+                sys.exit()
+
         self.max_votes = max_votes
         self.posting_key = posting_key
         self.user_actions = {}
@@ -251,7 +263,7 @@ class Main:
 
                                 self.return_json({"success": True, "idnum": info["idnum"]}, idnum)
                             else:
-                                self.return_json({"success": False, "error": 100, "idnum": info["idnum"]}, idnum)
+                                self.return_json({"success": False, "error": 109, "idnum": info["idnum"]}, idnum)
 
                     else:
                         self.return_json({"success": False, "error": 3, "idnum": info["idnum"]}, idnum)
@@ -310,8 +322,9 @@ class Main:
                 return
 
             try:
+                print("post holder locking")
                 with self.locks["post-holder"]:
-
+                    print("post holder lock")
                     post = self.post_holders[info["action"]["tag"]].get_random(info["steem-name"])
                     if post:
                         self.return_json({"success": True,"post":post, "idnum": info["idnum"]}, idnum)
@@ -416,6 +429,10 @@ class Main:
 class PostHolder:
 
     def __init__(self,main):
+        self.max_votes = 30
+        self.min_votes = 5
+        self.min_vote_time = 5  # minutes
+        self.max_vote_time = 720  # minutes
         print("THIS")
         self.main = main
         self.post_list = []
@@ -449,8 +466,11 @@ class PostHolder:
     def add_post(self, post_link, submission_author):
         print("START ADD POST")
         with self.lock:
+            for i in self.post_list:
+                if submission_author == i[1]:
+                    return False
             submission_acc = interpret.get_account_info(submission_author,self.key,self.sending_account,self.memo_account,self.nodes[0])
-            if submission_acc[2]["adp_tok"] >0:
+            if submission_acc[2]["adp_tok"] > 0:
                 print("UPDATE 2nd")
                 interpret.update_account(submission_author,self.sending_account,self.memo_account,[["adp_tok", submission_acc[2]["adp_tok"] - 1]], self.key,self.nodes[0])
             else:
@@ -498,28 +518,48 @@ class PostHolder:
                         self.random_posts.append([i, i[3]])
                 random.shuffle(self.random_posts)
     def get_random(self,steem_name):
+        print("locking self")
         with self.lock:
+            print("self locked")
             if len(self.post_list) == 0:
+                print("if")
                 return False
         # finds the next post in the random order and removes it
         # when it runs out it just creates the list again
         # this forces the posts to be seen roughly the same amount of times as their chance
             try:
+                print("try")
                 if len(self.random_posts) == 0:
-                    self.set_random()
-                len_num = 1000
-                ad_token_bonus = 100
-                while len_num > 30 + ad_token_bonus:
-                    return_post = self.random_posts.pop(0)
-                    ad_token_bonus = return_post[1]
-                    return_post = return_post[0]
-                    len_num = len(return_post[2])
-                    if ad_token_bonus > 40:
-                        ad_token_bonus = 40
-                self.add_vote([steem_name,0],return_post,is_get_random=True)
-                return return_post
+                    self.set_random(already_locked=True)
+                while True:
+                    print("here2")
+                    if len(self.random_posts) == 0:
+                        return False
+                    len_num = 1000
+                    ad_token_bonus = 100
+                    position_num = 0
+
+                    while len_num > 30 + ad_token_bonus:
+                        print("here")
+                        if len(self.random_posts) == 0:
+                            return False
+                        return_post = self.random_posts.pop(0)
+                        ad_token_bonus = return_post[1]
+                        return_post = return_post[0]
+                        len_num = len(return_post[2])
+                        if ad_token_bonus > 40:
+                            ad_token_bonus = 40
+
+                    if self.add_vote([steem_name,0],return_post,is_get_random=True):
+
+
+                        return return_post
+
+                #else:
+                 #   position_num +=1
             except AttributeError:
-                self.set_random()
+                print("setrandom")
+                self.set_random(already_locked=True)
                 return self.get_random(steem_name)
 
     def add_vote(self, vote, post, is_get_random=False):
@@ -527,12 +567,18 @@ class PostHolder:
         if is_get_random:
             for i in self.post_list:
                 print(i[0], post[0])
-
+                not_used = True
                 if i[0] == post[0]:
-                    i[2].append(vote)
-
-
-            return True
+                    for ii in i[2]:
+                        if ii[0] == vote[0]:
+                            not_used = False
+                    if not_used:
+                        i[2].append(vote)
+                        return True
+                    else:
+                        return False
+            print("TRUE0")
+            return False
 
 
         with self.lock:
@@ -542,30 +588,42 @@ class PostHolder:
         # goes through every post and checks if it is the correct one, then every voter to see if it has been voted on already
         # print(vote,post)
             already_voted = False
+            print("START VOTE LOOK")
+            print(self.post_list)
             for i in self.post_list:
-
+                print(i, post, i[0], self.post_list)
+                print(i[0], post)
+                print(i[0] == post)
                 if post == i[0]:
+
+
                     for ii in i[2]:
+                        print(ii, vote, ii[0], vote[0], ii[0] == vote[0])
                         if ii[0] == vote[0]:
                             already_voted = True  # so that it changes it instead of adding a new vote onto the end
                             ii[1] = vote[1]
+                            print("TRUE1")
                             return True
                             break
                     if not already_voted:
+                        print("FALSE1")
                         return False
                         #i[2].append(vote)
                     else:
                         break
-
+        print("FALSE2")
         return False
 
     def make_vote(self, ratio, post_link,account_name):
         account_info_post = interpret.get_account_info(account_name,self.main.active_key, self.main.sending_account, self.main.memo_account,
-                                                       self.main.nodes[0])[2]
+                                                       self.main.nodes[0])
+        if account_info_post:
+            account_info_post = account_info_post[2]
+
         # takes ratio and post link and calculates the vote on the post, and returns it for use in the post memo
         if ratio < self.vote_threshold:
             return 0
-        if account_info_post != None:
+        if account_info_post:
             upvote_tokens = account_info_post["token-upvote-perm"] #+ self.account_info[post_link]["token-upvote-temp"]
         else:
             upvote_tokens = 0
@@ -597,7 +655,8 @@ class PostHolder:
                     for i in self.post_list:
                         print(i)
                         print(time.time() - i[4])
-                        if time.time() - i[4] > 60 * 3:
+                        # checks if the post has been in the system for long enough to vote
+                        if (time.time() - i[4] > self.max_vote_time * 60) or (self.max_votes < len(i[2])):
                             print("FINISHING POST")
                             self.finish_post(i)
                         else:

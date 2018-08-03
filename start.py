@@ -26,12 +26,14 @@ import time
 TCP_IP = '127.0.0.1'
 TCP_PORT = 5001
 BUFFER_SIZE = 1024
+messages = [json.dumps({"action":{"type":"create_session_curation","tag":"general"},"key":"mykey","steem-name":"anarchyhasnogods", "forward":"false"})
+            ,   json.dumps({"action":{"type":"create_session_curation","tag":"LGBT"},"key":"mykey","steem-name":"anarchyhasnogods", "forward":"false"})]
 
-def connect_func():
+
+def connect_func(MESSAGE):
     print("here")
     while True:
         try:
-            MESSAGE = json.dumps({"action":{"type":"create_session_curation","tag":"TAG"},"key":"","steem-name":"anarchyhasnogods", "forward":"false"})
 
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((TCP_IP, TCP_PORT))
@@ -52,7 +54,10 @@ def connect_func():
         except Exception as e:
             print(e)
             time.sleep(1)
-connect_func()
+
+for i in messages:
+
+    connect_func(i)
 
 #os.system("")
 #os.system("")

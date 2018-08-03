@@ -6,7 +6,8 @@ import time
 import json
 
 def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", position=-1, recent = 1, step = 10000, minblock = -1, node="wss://steemd.privex.io", not_all_accounts = True, type_thing="transfer"):
-    print(account)
+    print(account, "account1")
+    print(keyword)
     # minblock is blocks before current block
     # account is the account that sent the memo
     # sent-to is account that it was sent to
@@ -16,18 +17,21 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
     # notallaccounts is wether or not it looks at every account
 
     print(node)
-    node_connection = create_connection(node)
-    s = Steem(node=node_connection)
+    print("NODE")
+    #node_connection = create_connection(node)
+    s = Steem(node=node)
+    print("FIRST CONNECTION DONE")
     memo_list = []
     if position > -1:
         # This returns the memo based on a saved position
 
-
+        print("position > -1")
         memo = get_memo(s.get_account_history(sent_to, position, 0),type_thing)
         return memo
 
 
     else:
+        print("else")
         # If the first is 0, it checks the first one with the keyword or account
         #(or and depending on keyword and account)
         found = True
@@ -38,26 +42,29 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
             memo_thing = s.get_account_history(sent_to,-1,0)
         elif type_thing == "curation_reward":
             memo_thing = s.get_account_history(account,-1,0)
+
         size = memo_thing[0][0]
+        print("SIZE")
 
         if minblock > 0:
 
             minblock = memo_thing[0][1]["block"] - minblock
             print(minblock)
         position = size
+        print("POSITIONS")
         if position < 0:
             position = step +1
         if step > position:
             step = position - 1
         while found:
-
+            print("WHILE FOUND")
             # Checks if it has enough memos (ignores if its set to get all memos with not_all_accounts)
 
             if (recent > 0 and len(memo_list) > 0) and not_all_accounts:
                 if len(memo_list) >= recent:
 
                     break
-
+            print("while found 2")
             if type_thing =="transfer":
                 history = s.get_account_history(sent_to, position, step)
                 memos = get_memo(history, type_thing)
@@ -66,14 +73,18 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                 memos = get_memo(history, type_thing)
             has_min_block = False
             #print(len(memos),keyword)
+            print("while found 3")
             for i in range(len(memos)-1, -1, -1):
+                print(memos)
                 # goes through memos one at a time, starting with latest
                 if len(memo_list) >= recent and not_all_accounts:
                     # ends if there are enough memos
                     print("here")
                     break
+                print("HAS keyword")
                 has_keyword = False
                 if type_thing == "transfer":
+                    print("transfer")
 
                     if memos[i][3] < minblock:
                         has_min_block = True
@@ -82,7 +93,7 @@ def retrieve(keyword=[], account="anarchyhasnogods",sent_to="randowhale", positi
                     if memos[i][1] == account:
                         has_account = True
                 if type_thing == "curation_reward":
-
+                    print("curation award")
                     if memos[i][2] < minblock:
                         has_min_block = True
                     has_account = True
@@ -167,9 +178,9 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
     try:
         # creates connection and sends the transaction, it then checks if it can find the memo on the blockchain.
         print(0)
-        node_connection = create_connection(node)
+        #node_connection = create_connection(node)
         print(1)
-        s = Steem(node=node_connection, keys=active_key)
+        s = Steem(node=node, keys=active_key)
 
         memo = json.dumps(information)
         print("MEMO THINF MADE")
@@ -191,15 +202,15 @@ def save_memo(information, to, account_from, active_key, transaction_size=0.001,
         try:
 
             if information["type"] == "account":
-                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["account",str(information["account"])], ["type","account"]])
+                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["account",str(information["account"])], ["type","account"]],node=node)
             elif information["type"] == "post":
-                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["type","post"],["post_link",information["post_link"]]])
+                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["type","post"],["post_link",information["post_link"]]],node=node)
                 print("index")
             elif information["type"] == "vote-link":
 
 
 
-                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["type","vote-link"],["account",information["account"]]])
+                index = retrieve(account=account_from, sent_to=to, recent=1, step=50, keyword=[["type","vote-link"],["account",information["account"]]],node=node)
 
 
 
